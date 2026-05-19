@@ -20,39 +20,35 @@ không tài khoản, không kết nối mạng.
 | Lớp | Công nghệ |
 |---|---|
 | Giao diện (renderer) | React 19 + Vite + Mantine 9 + TanStack Query |
-| Cầu nối | Electron IPC (`window.api.invoke`) — **không HTTP server, không port** |
-| Backend (main process) | TypeScript thuần trên `sql.js` (SQLite biên dịch WASM) |
-| CSDL | SQLite tại `%APPDATA%\hang-wu-desktop\hang-wu.db` |
-| Migrations | `migrations/*.sql` tự chạy lúc khởi động (bảng `_migrations`) |
+| Cầu nối | Tauri IPC (`invoke`) — không HTTP server, không port |
+| Backend (main process) | Rust trên `rusqlite` (SQLite native, không WASM) |
+| CSDL | SQLite tại `%APPDATA%\com.hangwu.desktop\hang-wu.db` |
+| Migrations | `src-tauri/migrations/*.sql` tự chạy lúc khởi động |
 
-`sql.js` chạy SQLite trong RAM; sau mỗi thao tác ghi, toàn bộ DB được export ra
-file `hang-wu.db`. Ưu điểm: **không cần biên dịch native** (không node-gyp,
-không Visual Studio Build Tools) → cài và chạy được trên mọi máy.
+`rusqlite` dùng SQLite native (bundled), không cần WASM. Nhanh hơn và ổn định hơn so với sql.js trước đây.
 
 ## Yêu cầu
 
 - **Windows 10/11** (mục tiêu đóng gói chính; dev được trên macOS/Linux).
-- **Node.js 20 trở lên** (khuyến nghị 22 LTS hoặc mới hơn).
-- Không cần trình biên dịch C/C++ hay build tool nào khác.
+- **Node.js 20 trở lên** (khuyến nghị 22 LTS).
+- **Rust toolchain** — cài tại [rustup.rs](https://rustup.rs).
+- **WebView2 Runtime** — có sẵn trên Windows 11; Windows 10 tải tại
+  [microsoft.com/en-us/edge/webview2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
 ## Cài đặt & chạy
 
 ```bash
-# 1. Cài phụ thuộc (kéo luôn Electron binary + sql.js WASM)
+# 1. Cài phụ thuộc JS
 npm install
 
-# 2. Chạy app ở chế độ dev (hot-reload giao diện)
+# 2. Chạy app ở chế độ dev (hot-reload giao diện + Rust backend)
 npm run dev
 ```
 
 Lần chạy đầu tiên app tự tạo CSDL rỗng tại
-`%APPDATA%\hang-wu-desktop\hang-wu.db` và chạy toàn bộ migrations. Nhập liệu
-trực tiếp trong app hoặc import Excel ở màn **Báo cáo bán hàng**.
+`%APPDATA%\com.hangwu.desktop\hang-wu.db` và chạy toàn bộ migrations.
 
 ### Sau mạng công ty (proxy TLS) — nếu `npm install` lỗi chứng chỉ
-
-Nếu `npm install` báo `unable to verify the first certificate` khi tải Electron
-binary, cho Node đọc kho chứng chỉ của Windows (đã có CA của công ty):
 
 ```powershell
 $env:NODE_OPTIONS = "--use-system-ca"
@@ -64,63 +60,53 @@ npm install
 ## Các lệnh khác
 
 ```bash
-npm run typecheck   # kiểm tra type cả main lẫn renderer
-npm run build       # typecheck + build production vào out/
-npm run build:win   # build + đóng gói installer .exe (NSIS) vào release/
-npm run start        # xem thử bản đã build (electron-vite preview)
+npm run dev:vite    # chỉ khởi động Vite (không có Tauri)
+npm run build:vite  # build frontend vào dist/
+npm run dev         # chạy đầy đủ: Vite + Tauri dev window
+npm run build       # build production (Vite + Tauri)
 ```
 
 ## Đóng gói phát hành
 
 ```bash
-npm run build:win
+npm run build
 ```
 
-Tạo file cài đặt NSIS `release/Hang Wonder Union Setup <version>.exe`. Cấu
-hình đóng gói nằm ở `electron-builder.yml`; `migrations/`, `sql-wasm.wasm` và
-icon được copy vào resources của bản đóng gói nên app cài đặt vẫn chạy
-migrations bình thường.
+Tạo file cài đặt NSIS tại `src-tauri/target/release/bundle/nsis/`. Cấu hình
+đóng gói nằm ở `src-tauri/tauri.conf.json`; `migrations/` được copy vào
+resources của bản đóng gói.
 
-`build:win` gọi `scripts/package-win.mjs` lo sẵn 2 việc, **không cần quyền
-admin / Developer Mode**:
-
-- Tự giải nén gói `winCodeSign` vào cache của electron-builder nhưng **loại
-  trừ thư mục `darwin/`** — gói này có symlink macOS, giải nén trên Windows
-  bằng tài khoản thường sẽ lỗi *"Cannot create symbolic link"*; phần `darwin`
-  không cần trên Windows. Idempotent: cache có rồi thì bỏ qua.
-- Ép `CSC_IDENTITY_AUTO_DISCOVERY=false` → bỏ qua ký số (app nội bộ, không
-  có chứng chỉ), không dò chứng chỉ trong máy.
-
-Phát hành phiên bản mới: tăng `version` trong `package.json` → `npm run
-build:win` → gửi file Setup mới. Cài đè lên bản cũ, dữ liệu trong `%APPDATA%`
-được giữ nguyên.
+Phát hành phiên bản mới: tăng `version` trong `src-tauri/tauri.conf.json` và
+`src-tauri/Cargo.toml` → `npm run build` → gửi file Setup mới. Cài đè lên bản
+cũ, dữ liệu trong `%APPDATA%` được giữ nguyên.
 
 ## Dữ liệu & sao lưu
 
-- **Vị trí:** `%APPDATA%\hang-wu-desktop\hang-wu.db` (một file SQLite duy nhất).
+- **Vị trí:** `%APPDATA%\com.hangwu.desktop\hang-wu.db` (một file SQLite duy nhất).
 - **Sao lưu / di chuyển máy:** copy đúng file đó là đủ.
 - **Reset sạch:** xoá file đó → mở app lại sẽ tạo DB rỗng và chạy lại migrations.
-- **Migrations:** thêm file `migrations/NNNN_*.sql` (đánh số tăng dần); app áp
-  dụng các file chưa chạy theo thứ tự tên, ghi nhận vào bảng `_migrations` nên
-  idempotent — chạy lại lúc khởi động không lặp lại migration cũ.
+- **Migrations:** thêm file `src-tauri/migrations/NNNN_*.sql` (đánh số tăng
+  dần); app áp dụng các file chưa chạy theo thứ tự tên, ghi nhận vào bảng
+  `_migrations` — idempotent, không lặp lại migration cũ.
 
 ## Cấu trúc thư mục
 
 ```
-electron/        Main process: kết nối DB (sql.js), runner migrations, IPC router, API
-  db/            connection.ts (facade SQLite), migrate.ts
-  api/           các resource (san_pham, ceo, nhom_san_pham, sales_session) + router
+src-tauri/
+  src/
+    commands/    Rust commands (san_pham, ceo, nhom_san_pham, sales_session, backup, excel)
+    db/          Kết nối SQLite và runner migrations
+    lib.rs       Đăng ký Tauri commands
+    main.rs      Entry point
+  migrations/    *.sql áp dụng tuần tự lúc khởi động
+  tauri.conf.json
+  Cargo.toml
 src/             Giao diện React (renderer) — màn dữ liệu gốc & Báo cáo bán hàng
-migrations/      *.sql áp dụng tuần tự lúc khởi động
-scripts/         package-win.mjs (đóng gói Windows tự lành)
-public/clover.png      Icon ứng dụng (exe, installer, shortcut, taskbar)
-electron-builder.yml   Cấu hình đóng gói NSIS
 ```
 
 ## Ghi chú
 
-- **Icon:** dùng `public/clover.png` (512×512). electron-builder tự sinh `.ico`
-  cho exe/installer/shortcut; `electron/main/index.ts` dùng nó cho cửa sổ &
-  taskbar lúc chạy. Đổi icon = thay file này (giữ ≥256×256, vuông).
+- **Icon:** nằm trong `src-tauri/icons/`. Tauri tự dùng khi build. Đổi icon =
+  thay các file trong thư mục đó (dùng `tauri icon <file.png>` để sinh lại).
 - **Offline tuyệt đối:** app không mở cổng mạng, không gọi API ngoài; mọi
-  giao tiếp UI ↔ backend qua Electron IPC trong tiến trình.
+  giao tiếp UI ↔ backend qua Tauri IPC trong tiến trình.
