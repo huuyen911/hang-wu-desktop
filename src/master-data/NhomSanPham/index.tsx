@@ -72,8 +72,8 @@ export default function NhomSanPhamPage() {
     const selected = new Set(c.form.san_pham_ids)
     const isMain = (sp: SanPham) =>
       c.form.thuong_hieu === 'Weilaiya'
-        ? sp.la_san_pham_chinh_weilaiya === 1
-        : sp.la_san_pham_chinh_elvawell === 1
+        ? sp.la_san_pham_chinh_weilaiya
+        : sp.la_san_pham_chinh_elvawell
     return sanPhamList
       .filter((sp) => isMain(sp) || selected.has(String(sp.id)))
       .map((sp) => ({ value: String(sp.id), label: `${sp.ma_san_pham} – ${sp.ten_san_pham}` }))

@@ -48,8 +48,8 @@ export default function SanPhamPage() {
       ten_san_pham: item.ten_san_pham,
       quy_cach: item.quy_cach,
       thuong_hieu: item.thuong_hieu,
-      la_san_pham_chinh_weilaiya: item.la_san_pham_chinh_weilaiya === 1,
-      la_san_pham_chinh_elvawell: item.la_san_pham_chinh_elvawell === 1,
+      la_san_pham_chinh_weilaiya: item.la_san_pham_chinh_weilaiya,
+      la_san_pham_chinh_elvawell: item.la_san_pham_chinh_elvawell,
     }),
     toPayload: (form) => ({ ...form, quy_cach: Number(form.quy_cach) }),
     validate,
@@ -98,10 +98,10 @@ export default function SanPhamPage() {
               </Badge>
             </Table.Td>
             <Table.Td style={{ textAlign: 'center' }}>
-              <Center>{mainFlag(item.la_san_pham_chinh_elvawell === 1)}</Center>
+              <Center>{mainFlag(item.la_san_pham_chinh_elvawell)}</Center>
             </Table.Td>
             <Table.Td style={{ textAlign: 'center' }}>
-              <Center>{mainFlag(item.la_san_pham_chinh_weilaiya === 1)}</Center>
+              <Center>{mainFlag(item.la_san_pham_chinh_weilaiya)}</Center>
             </Table.Td>
             <Table.Td style={{ textAlign: 'center' }}>
               <Group gap={6} justify="center">

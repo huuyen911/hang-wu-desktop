@@ -61,8 +61,7 @@ export default function SalesReport() {
       { ten, file_name: pending.fileName, rows: pending.rows },
       {
         onSuccess: (session) => {
-          // Seed cache chi tiết để mở phiên không phải fetch lại (đỡ nháy loader).
-          qc.setQueryData(sessionDetailKey(session.id), session)
+          qc.setQueryData(sessionDetailKey(session.id), { ...session, rows: pending!.rows })
           open(session.id)
           setPending(null)
           notifications.show({

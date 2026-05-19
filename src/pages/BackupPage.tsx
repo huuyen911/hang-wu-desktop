@@ -19,20 +19,23 @@ import {
 } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { useQueryClient } from '@tanstack/react-query'
+import { invoke } from '@tauri-apps/api/core'
+import { save, open } from '@tauri-apps/plugin-dialog'
 
-// Nhãn tiếng Việt cho từng bảng khi hiển thị tóm tắt số dòng.
+interface RestoredCounts {
+  san_pham: number
+  ceo: number
+  nhom_san_pham: number
+  sales_session: number
+}
+
+const APP_VERSION = '0.2.0'
+
 const TABLE_LABELS: Record<string, string> = {
   san_pham: 'Sản phẩm',
   nhom_san_pham: 'Nhóm sản phẩm',
-  nhom_san_pham_san_pham: 'Liên kết Nhóm–Sản phẩm',
   ceo: 'CEO',
   sales_session: 'Phiên báo cáo bán hàng',
-}
-
-function summaryLines(counts: Record<string, number>): string {
-  return Object.entries(counts)
-    .map(([t, n]) => `${TABLE_LABELS[t] ?? t}: ${n}`)
-    .join(' · ')
 }
 
 export default function BackupPage() {
@@ -44,17 +47,26 @@ export default function BackupPage() {
   async function handleExport() {
     setExporting(true)
     try {
-      const res = await window.api.exportBackup()
-      if (res.ok && res.canceled) return
-      if (!res.ok) {
-        notifications.show({ color: 'red', title: 'Xuất sao lưu thất bại', message: res.error })
-        return
-      }
+      const path = await save({
+        defaultPath: `hang-wu-backup-${new Date().toISOString().slice(0, 10)}.json`,
+        filters: [{ name: 'Backup JSON', extensions: ['json'] }],
+      })
+      if (!path) return
+
+      const json = await invoke<string>('build_backup', { appVersion: APP_VERSION })
+      await invoke('write_backup_file', { path, content: json })
+
       notifications.show({
         color: 'green',
         title: 'Đã xuất bản sao lưu',
-        message: `${res.summary.total} dòng → ${res.filePath ?? ''}`,
+        message: path,
         autoClose: 6000,
+      })
+    } catch (err) {
+      notifications.show({
+        color: 'red',
+        title: 'Xuất sao lưu thất bại',
+        message: err instanceof Error ? err.message : String(err),
       })
     } finally {
       setExporting(false)
@@ -65,19 +77,31 @@ export default function BackupPage() {
     setConfirmOpen(false)
     setImporting(true)
     try {
-      const res = await window.api.importBackup()
-      if (res.ok && res.canceled) return
-      if (!res.ok) {
-        notifications.show({ color: 'red', title: 'Phục hồi thất bại', message: res.error })
-        return
-      }
-      // Nạp lại toàn bộ dữ liệu trong DB → làm mới mọi truy vấn đang cache.
+      const path = await open({
+        multiple: false,
+        filters: [{ name: 'Backup JSON', extensions: ['json'] }],
+      })
+      if (!path) return
+
+      const json = await invoke<string>('read_backup_file', { path: path as string })
+      const counts = await invoke<RestoredCounts>('restore_backup', { json })
+
       await queryClient.invalidateQueries()
+
+      const summary = Object.entries(counts)
+        .map(([k, v]) => `${TABLE_LABELS[k] ?? k}: ${v}`)
+        .join(' · ')
       notifications.show({
         color: 'green',
         title: 'Phục hồi thành công',
-        message: `Đã nạp ${res.summary.total} dòng — ${summaryLines(res.summary.counts)}`,
+        message: summary,
         autoClose: 8000,
+      })
+    } catch (err) {
+      notifications.show({
+        color: 'red',
+        title: 'Phục hồi thất bại',
+        message: err instanceof Error ? err.message : String(err),
       })
     } finally {
       setImporting(false)
@@ -91,8 +115,8 @@ export default function BackupPage() {
         <Title order={4}>Sao lưu & Phục hồi hệ thống</Title>
       </Group>
       <Text c="dimmed" size="sm" mb="lg">
-        Sao lưu/phục hồi <b>toàn bộ</b> dữ liệu: sản phẩm, nhóm sản phẩm, CEO, liên kết
-        nhóm–sản phẩm và lịch sử báo cáo bán hàng. Định dạng file là JSON.
+        Sao lưu/phục hồi <b>toàn bộ</b> dữ liệu: sản phẩm, nhóm sản phẩm, CEO và lịch sử báo
+        cáo bán hàng. Định dạng file là JSON.
       </Text>
 
       <Stack gap="md">
@@ -118,8 +142,8 @@ export default function BackupPage() {
         <Card withBorder radius="md" padding="lg">
           <Text fw={600}>Phục hồi từ file sao lưu</Text>
           <Text size="sm" c="dimmed" mt={4}>
-            Chọn 1 file sao lưu để nạp lại. Thao tác này diễn ra trọn vẹn trong một
-            giao dịch — nếu có lỗi, dữ liệu hiện tại được giữ nguyên.
+            Chọn 1 file sao lưu để nạp lại. Thao tác này diễn ra trọn vẹn trong một giao dịch —
+            nếu có lỗi, dữ liệu hiện tại được giữ nguyên.
           </Text>
           <Alert
             color="red"
@@ -128,8 +152,8 @@ export default function BackupPage() {
             mt="md"
             title="Cảnh báo: ghi đè toàn bộ"
           >
-            Khi phục hồi, <b>toàn bộ dữ liệu hiện tại sẽ bị xóa</b> và thay bằng dữ liệu
-            trong file. Không thể hoàn tác — hãy xuất một bản sao lưu trước khi phục hồi.
+            Khi phục hồi, <b>toàn bộ dữ liệu hiện tại sẽ bị xóa</b> và thay bằng dữ liệu trong
+            file. Không thể hoàn tác — hãy xuất một bản sao lưu trước khi phục hồi.
           </Alert>
           <Group justify="flex-end" mt="md">
             <Button
@@ -154,8 +178,8 @@ export default function BackupPage() {
         closeOnClickOutside={!importing}
       >
         <Text size="sm" mb="sm">
-          Bạn sắp <b>xóa sạch toàn bộ dữ liệu hiện tại</b> và thay bằng dữ liệu trong file
-          sao lưu được chọn. Việc này ảnh hưởng:
+          Bạn sắp <b>xóa sạch toàn bộ dữ liệu hiện tại</b> và thay bằng dữ liệu trong file sao
+          lưu được chọn. Việc này ảnh hưởng:
         </Text>
         <List size="sm" mb="md" spacing={2}>
           {Object.values(TABLE_LABELS).map((label) => (

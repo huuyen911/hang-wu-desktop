@@ -1,8 +1,4 @@
-/**
- * Lớp gọi API dùng chung. Bản desktop: thay HTTP fetch bằng IPC tới Electron
- * main (window.api.invoke). Giữ nguyên bề mặt get/post/put/del + ApiError nên
- * toàn bộ hook/trang phía trên không phải sửa.
- */
+import { invoke } from '@tauri-apps/api/core'
 
 export class ApiError extends Error {
   constructor(
@@ -15,21 +11,44 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await window.api.invoke<T | { error?: string }>(method, path, body)
-  if (!res.ok) {
-    const msg =
-      (res.data as { error?: string } | null)?.error ?? `Lỗi máy chủ (${res.status})`
-    throw new ApiError(msg, res.status)
+  // path format: /api/resource  or  /api/resource/id
+  const parts = path.replace(/^\/api\//, '').split('/')
+  const resource = parts[0].replace(/-/g, '_') // "nhom-san-pham" → "nhom_san_pham"
+  const id = parts[1] ? parseInt(parts[1], 10) : undefined
+
+  let command: string
+  const args: Record<string, unknown> = {}
+
+  if (method === 'GET' && id === undefined) {
+    command = `list_${resource}`
+  } else if (method === 'GET' && id !== undefined) {
+    command = `get_${resource}`
+    args.id = id
+  } else if (method === 'POST') {
+    command = `create_${resource}`
+    args.data = body
+  } else if (method === 'PUT') {
+    command = `update_${resource}`
+    args.id = id
+    args.data = body
+  } else if (method === 'DELETE') {
+    command = `delete_${resource}`
+    args.id = id
+  } else {
+    throw new ApiError(`Unknown route: ${method} ${path}`, 400)
   }
-  return res.data as T
+
+  try {
+    return await invoke<T>(command, args)
+  } catch (err) {
+    const msg = typeof err === 'string' ? err : err instanceof Error ? err.message : String(err)
+    throw new ApiError(msg, 500)
+  }
 }
 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
-
   post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
-
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
-
-  del: <T = { success: boolean }>(path: string) => request<T>('DELETE', path),
+  del: <T = void>(path: string) => request<T>('DELETE', path),
 }
