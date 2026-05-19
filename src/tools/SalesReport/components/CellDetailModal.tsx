@@ -63,21 +63,14 @@ export default function CellDetailModal({
     })
   })
 
+  flatLines.sort((a, b) => a.productCode.localeCompare(b.productCode))
+
   const noData = flatLines.length === 0
   const totalThungCalc = flatLines.reduce((s, l) => s + (l.thung ?? 0), 0)
   const totalQty = flatLines.reduce((s, l) => s + l.qty, 0)
   const totalAmount = flatLines.reduce((s, l) => s + l.amount, 0)
   const colLabel = col.isUngrouped ? `Sản phẩm ${col.name}` : `Nhóm "${col.name}"`
 
-  // Tô màu xen kẽ theo nhóm productCode.
-  const productColorMap = new Map<string, boolean>()
-  let colorToggle = false
-  flatLines.forEach((l) => {
-    if (!productColorMap.has(l.productCode)) {
-      productColorMap.set(l.productCode, colorToggle)
-      colorToggle = !colorToggle
-    }
-  })
 
   return (
     <Modal
@@ -121,11 +114,10 @@ export default function CellDetailModal({
             </thead>
             <tbody>
               {flatLines.map((line, i) => {
-                const isAltGroup = productColorMap.get(line.productCode)
                 const missingQC = line.quyCach === null
                 const rowBg = missingQC
                   ? 'var(--mantine-color-orange-0)'
-                  : isAltGroup ? 'var(--mantine-color-blue-0)' : 'white'
+                  : i % 2 === 1 ? 'var(--mantine-color-gray-0)' : 'white'
                 const thungRounded = line.thung !== null ? round2(line.thung) : null
                 return (
                   <tr key={i} style={{ background: rowBg, borderBottom: '1px solid var(--mantine-color-gray-1)' }}>

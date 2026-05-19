@@ -1,6 +1,6 @@
 import { NavLink, Stack, Title, Box, Text } from '@mantine/core'
 import { NavLink as RouterNavLink } from 'react-router-dom'
-import { IconDatabase } from '@tabler/icons-react'
+import { IconDatabase, IconHome } from '@tabler/icons-react'
 import { tools } from '@/tools/registry'
 import { masterDataPages } from '@/master-data/registry'
 
@@ -22,6 +22,22 @@ export default function Sidebar() {
       </Box>
 
       <Stack gap={0} p="xs" flex={1}>
+        <RouterNavLink to="/" end style={{ textDecoration: 'none' }}>
+          {({ isActive }) => (
+            <NavLink
+              label="Trang chủ"
+              leftSection={<IconHome size={20} />}
+              active={isActive}
+              variant="filled"
+              style={{ borderRadius: 8 }}
+              styles={{
+                root: { color: isActive ? 'white' : 'var(--mantine-color-dark-1)' },
+                label: { fontSize: 14 },
+              }}
+            />
+          )}
+        </RouterNavLink>
+
         <SectionLabel>Công cụ</SectionLabel>
         {tools.map((tool) => (
           <RouterNavLink key={tool.id} to={`/tools/${tool.id}`} style={{ textDecoration: 'none' }}>

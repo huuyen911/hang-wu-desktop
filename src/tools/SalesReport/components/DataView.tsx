@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Box, Group, Stack, Text, Button, Divider, ScrollArea, SegmentedControl } from '@mantine/core'
+import { Box, Group, Stack, Text, Button, ScrollArea, SegmentedControl } from '@mantine/core'
 import { IconCheck } from '@tabler/icons-react'
-import { fmt } from '../format'
 import { aggregateRows } from '../aggregate'
 import { useSalesRows } from '../hooks/useSalesRows'
 import { useReportMasterData } from '../hooks/useReportMasterData'
@@ -9,11 +8,11 @@ import BrandPanel from './BrandPanel'
 import SalesRowsTable from './SalesRowsTable'
 
 interface Props {
-  fileName: string
+  sessionName: string
   onReset: () => void
 }
 
-export default function DataView({ fileName, onReset }: Props) {
+export default function DataView({ sessionName, onReset }: Props) {
   const { rows } = useSalesRows()
   const [tab, setTab] = useState<'report' | 'data'>('report')
 
@@ -42,11 +41,7 @@ export default function DataView({ fileName, onReset }: Props) {
         style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'white', flexShrink: 0 }}>
         <Group gap="xs">
           <IconCheck size={16} color="var(--mantine-color-green-6)" />
-          <Text fw={600} size="sm">{fileName}</Text>
-          <Divider orientation="vertical" />
-          <Text size="sm" c="dimmed">{fmt.format(rows?.length ?? 0)} dòng</Text>
-          <Divider orientation="vertical" />
-          <Text size="xs" c="orange.7" fw={600}>Chỉnh sửa local — không gửi lên máy chủ</Text>
+          <Text fw={600} size="sm">{sessionName}</Text>
         </Group>
         <Group gap="sm">
           <SegmentedControl

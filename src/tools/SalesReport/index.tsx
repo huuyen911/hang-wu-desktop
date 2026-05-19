@@ -84,7 +84,7 @@ export default function SalesReport() {
   // Đang có phiên mở → hiện báo cáo (chờ tải chi tiết nếu mở từ lịch sử).
   if (activeSessionId != null) {
     if (data) {
-      return <DataView fileName={data.fileName} onReset={reset} />
+      return <DataView sessionName={data.fileName} onReset={reset} />
     }
     return (
       <Center h="100%" style={{ flexDirection: 'column', gap: 12 }}>

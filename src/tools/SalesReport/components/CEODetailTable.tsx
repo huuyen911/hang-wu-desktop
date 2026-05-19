@@ -58,10 +58,13 @@ export default function CEODetailTable({
           nhomProductsMap.get(nhomId)!.push(p)
         })
 
+        const sortByCode = (prods: typeof m.products) =>
+          [...prods].sort((a, b) => (a.productCode ?? '').localeCompare(b.productCode ?? '', 'vi'))
+
         const orderedGroups: Array<{ nhom: NhomSanPham | null; products: typeof m.products }> = []
         nhomGroups.forEach((nhom) => {
           const prods = nhomProductsMap.get(nhom.id)
-          if (prods && prods.length > 0) orderedGroups.push({ nhom, products: prods })
+          if (prods && prods.length > 0) orderedGroups.push({ nhom, products: sortByCode(prods) })
         })
         const crossBrandNhomIds = [...nhomProductsMap.keys()].filter(
           (id): id is number => id !== null && !currentBrandNhomIdSet.has(id),
@@ -76,10 +79,10 @@ export default function CEODetailTable({
           .forEach((id) => {
             const nhom = nhomIdToNhomMap.get(id) ?? null
             const prods = nhomProductsMap.get(id)
-            if (prods && prods.length > 0) orderedGroups.push({ nhom, products: prods })
+            if (prods && prods.length > 0) orderedGroups.push({ nhom, products: sortByCode(prods) })
           })
         const ungrouped = nhomProductsMap.get(null) ?? []
-        if (ungrouped.length > 0) orderedGroups.push({ nhom: null, products: ungrouped })
+        if (ungrouped.length > 0) orderedGroups.push({ nhom: null, products: sortByCode(ungrouped) })
 
         let rowIdx = 0
 

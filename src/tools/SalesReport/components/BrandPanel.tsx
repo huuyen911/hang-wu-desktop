@@ -50,6 +50,7 @@ export default function BrandPanel({
   const [ceoFilter, setCeoFilter] = useState<string | null>(null)
   const [monthFilter, setMonthFilter] = useState<string | null>(null)
   const [productSearch, setProductSearch] = useState('')
+  const [invoiceSearch, setInvoiceSearch] = useState('')
   const [onlyMain, setOnlyMain] = useState(true)
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function BrandPanel({
     setCeoFilter(null)
     setMonthFilter(null)
     setProductSearch('')
+    setInvoiceSearch('')
     setOnlyMain(true)
   }, [brand.brand]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -88,6 +90,7 @@ export default function BrandPanel({
   )
 
   const search = normalizeSearch(productSearch.trim())
+  const qInvoice = normalizeSearch(invoiceSearch.trim())
 
   const visibleCEOs = useMemo(
     () =>
@@ -108,11 +111,20 @@ export default function BrandPanel({
               )
             )
               return false
+            if (
+              qInvoice &&
+              !c.months.some((m) =>
+                m.products.some((p) =>
+                  p.invoiceCodes.some((inv) => normalizeSearch(inv).includes(qInvoice)),
+                ),
+              )
+            )
+              return false
           }
           return true
         })
         .map((c) => (onlyMain ? applyOnlyMain(c, brand.brand, sanPhamChinhSet) : c)),
-    [allCEOs, ceoFilter, monthFilter, search, onlyMain, brand.brand, sanPhamChinhSet],
+    [allCEOs, ceoFilter, monthFilter, search, qInvoice, onlyMain, brand.brand, sanPhamChinhSet],
   )
 
   const activeCEO = visibleCEOs.find((c) => c.ceo === selectedCEO) ?? visibleCEOs[0]
@@ -124,12 +136,13 @@ export default function BrandPanel({
     0,
   )
 
-  const isFiltered = !!ceoFilter || !!monthFilter || !!productSearch.trim() || !onlyMain
+  const isFiltered = !!ceoFilter || !!monthFilter || !!productSearch.trim() || !!invoiceSearch.trim() || !onlyMain
 
   function clearFilters() {
     setCeoFilter(null)
     setMonthFilter(null)
     setProductSearch('')
+    setInvoiceSearch('')
     setOnlyMain(true)
   }
 
@@ -193,6 +206,19 @@ export default function BrandPanel({
               </ActionIcon>
             : null}
           style={{ minWidth: 180 }}
+        />
+        <TextInput
+          placeholder="Mã hóa đơn"
+          value={invoiceSearch}
+          onChange={(e) => setInvoiceSearch(e.target.value)}
+          size="xs"
+          leftSection={<IconSearch size={13} />}
+          rightSection={invoiceSearch
+            ? <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setInvoiceSearch('')}>
+                <IconX size={11} />
+              </ActionIcon>
+            : null}
+          style={{ minWidth: 150 }}
         />
         <Switch
           size="xs"

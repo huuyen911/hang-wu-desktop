@@ -45,15 +45,21 @@ export default function SalesRowsTable() {
 
   const filtered = useMemo(
     () =>
-      list.filter((r) => {
-        if (ceoFilter && r.ceo !== ceoFilter) return false
-        if (brandFilter && r.brand !== brandFilter) return false
-        if (monthFilter && r.month !== monthFilter) return false
-        if (qProduct && ![r.productCode, r.productName].some((v) => normalizeSearch(v ?? '').includes(qProduct)))
-          return false
-        if (qInvoice && !normalizeSearch(r.invoice ?? '').includes(qInvoice)) return false
-        return true
-      }),
+      list
+        .filter((r) => {
+          if (ceoFilter && r.ceo !== ceoFilter) return false
+          if (brandFilter && r.brand !== brandFilter) return false
+          if (monthFilter && r.month !== monthFilter) return false
+          if (qProduct && ![r.productCode, r.productName].some((v) => normalizeSearch(v ?? '').includes(qProduct)))
+            return false
+          if (qInvoice && !normalizeSearch(r.invoice ?? '').includes(qInvoice)) return false
+          return true
+        })
+        .sort((a, b) => {
+          const ceoA = (a.ceo ?? '').localeCompare(b.ceo ?? '', 'vi')
+          if (ceoA !== 0) return ceoA
+          return (a.productCode ?? '').localeCompare(b.productCode ?? '', 'vi')
+        }),
     [list, ceoFilter, brandFilter, monthFilter, qProduct, qInvoice],
   )
 
