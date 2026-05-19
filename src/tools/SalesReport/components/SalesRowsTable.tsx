@@ -1,0 +1,271 @@
+import { useMemo, useState } from 'react'
+import {
+  Box, Group, Stack, Text, Button, TextInput, Select, ActionIcon,
+  Pagination, Center, Tooltip,
+} from '@mantine/core'
+import { IconX, IconPlus, IconPencil, IconTrash, IconSearch } from '@tabler/icons-react'
+import { normalizeSearch } from '@/utils/search'
+import type { SalesRow } from '../types'
+import { fmtQty, fmtAmount } from '../format'
+import { useSalesRows } from '../hooks/useSalesRows'
+import SalesRowFormModal from './SalesRowFormModal'
+import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
+
+const PAGE_SIZE = 50
+
+export default function SalesRowsTable() {
+  const { rows, addRow, updateRow, deleteRow } = useSalesRows()
+  const list = rows ?? []
+
+  const [ceoFilter, setCeoFilter] = useState<string | null>(null)
+  const [brandFilter, setBrandFilter] = useState<string | null>(null)
+  const [productSearch, setProductSearch] = useState('')
+  const [invoiceSearch, setInvoiceSearch] = useState('')
+  const [monthFilter, setMonthFilter] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+
+  const [formRow, setFormRow] = useState<SalesRow | null | undefined>(undefined)
+  const [delRow, setDelRow] = useState<SalesRow | null>(null)
+
+  const ceoOptions = useMemo(
+    () => [...new Set(list.map((r) => r.ceo).filter(Boolean))].sort().map((v) => ({ value: v, label: v })),
+    [list],
+  )
+  const brandOptions = useMemo(
+    () => [...new Set(list.map((r) => r.brand).filter(Boolean))].sort(),
+    [list],
+  )
+  const monthOptions = useMemo(
+    () => [...new Set(list.map((r) => r.month).filter(Boolean))].sort(),
+    [list],
+  )
+
+  const qProduct = normalizeSearch(productSearch.trim())
+  const qInvoice = normalizeSearch(invoiceSearch.trim())
+
+  const filtered = useMemo(
+    () =>
+      list.filter((r) => {
+        if (ceoFilter && r.ceo !== ceoFilter) return false
+        if (brandFilter && r.brand !== brandFilter) return false
+        if (monthFilter && r.month !== monthFilter) return false
+        if (qProduct && ![r.productCode, r.productName].some((v) => normalizeSearch(v ?? '').includes(qProduct)))
+          return false
+        if (qInvoice && !normalizeSearch(r.invoice ?? '').includes(qInvoice)) return false
+        return true
+      }),
+    [list, ceoFilter, brandFilter, monthFilter, qProduct, qInvoice],
+  )
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const curPage = Math.min(page, pageCount)
+  const pageRows = filtered.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE)
+
+  const isFiltered = !!ceoFilter || !!brandFilter || !!monthFilter || !!qProduct || !!qInvoice
+
+  function resetFilters() {
+    setCeoFilter(null); setBrandFilter(null); setMonthFilter(null)
+    setProductSearch(''); setInvoiceSearch(''); setPage(1)
+  }
+
+  function handleSubmit(row: SalesRow) {
+    if (formRow) updateRow(row.id, row)
+    else addRow(row)
+    setFormRow(undefined)
+  }
+
+  const thStyle: React.CSSProperties = {
+    position: 'sticky', top: 0, zIndex: 1, background: 'var(--mantine-color-gray-1)',
+    padding: '7px 8px', fontSize: 12, fontWeight: 600,
+    borderBottom: '2px solid var(--mantine-color-gray-3)', whiteSpace: 'nowrap', textAlign: 'left',
+  }
+  const tdStyle: React.CSSProperties = {
+    padding: '5px 8px', fontSize: 12, borderBottom: '1px solid var(--mantine-color-gray-1)',
+    whiteSpace: 'nowrap',
+  }
+
+  return (
+    <Stack gap={0} style={{ flex: 1, minHeight: 0 }}>
+      {/* Toolbar */}
+      <Group px="lg" py="xs" gap="sm" wrap="wrap"
+        style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-gray-0)', flexShrink: 0 }}>
+        <Button
+          size="xs"
+          leftSection={<IconPlus size={14} />}
+          onClick={() => setFormRow(null)}
+        >
+          Thêm dòng
+        </Button>
+
+        <Select
+          placeholder="CEO"
+          data={ceoOptions}
+          value={ceoFilter}
+          onChange={(v) => { setCeoFilter(v); setPage(1) }}
+          clearable searchable size="xs"
+          style={{ minWidth: 140 }}
+        />
+        <Select
+          placeholder="Thương hiệu"
+          data={brandOptions}
+          value={brandFilter}
+          onChange={(v) => { setBrandFilter(v); setPage(1) }}
+          clearable searchable size="xs"
+          style={{ minWidth: 130 }}
+        />
+        <TextInput
+          placeholder="Mã / tên sản phẩm"
+          value={productSearch}
+          onChange={(e) => { setProductSearch(e.target.value); setPage(1) }}
+          size="xs"
+          leftSection={<IconSearch size={13} />}
+          rightSection={productSearch
+            ? <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => { setProductSearch(''); setPage(1) }}>
+                <IconX size={11} />
+              </ActionIcon>
+            : null}
+          style={{ minWidth: 180 }}
+        />
+        <TextInput
+          placeholder="Mã hóa đơn"
+          value={invoiceSearch}
+          onChange={(e) => { setInvoiceSearch(e.target.value); setPage(1) }}
+          size="xs"
+          leftSection={<IconSearch size={13} />}
+          rightSection={invoiceSearch
+            ? <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => { setInvoiceSearch(''); setPage(1) }}>
+                <IconX size={11} />
+              </ActionIcon>
+            : null}
+          style={{ minWidth: 150 }}
+        />
+        <Select
+          placeholder="Tháng"
+          data={monthOptions}
+          value={monthFilter}
+          onChange={(v) => { setMonthFilter(v); setPage(1) }}
+          clearable size="xs"
+          style={{ minWidth: 110 }}
+        />
+        {isFiltered && (
+          <Button size="xs" variant="subtle" color="red" onClick={resetFilters}>
+            Xoá bộ lọc
+          </Button>
+        )}
+        <Text size="sm" c="dimmed" style={{ marginLeft: 'auto' }}>
+          <Text span fw={600} c="dark">{fmtQty(filtered.length)}</Text>
+          {isFiltered ? `/${fmtQty(list.length)}` : ''} dòng
+        </Text>
+      </Group>
+
+      {/* Table */}
+      {list.length === 0 ? (
+        <Center style={{ flex: 1 }}>
+          <Stack align="center" gap="xs">
+            <Text c="dimmed" size="sm">Chưa có dòng nào.</Text>
+            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setFormRow(null)}>
+              Thêm dòng đầu tiên
+            </Button>
+          </Stack>
+        </Center>
+      ) : filtered.length === 0 ? (
+        <Center style={{ flex: 1 }}>
+          <Text c="dimmed" size="sm">Không có dòng khớp bộ lọc.</Text>
+        </Center>
+      ) : (
+        <Box style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
+            <thead>
+              <tr>
+                <th style={{ ...thStyle, width: 48, textAlign: 'center' }}>STT</th>
+                <th style={{ ...thStyle, width: 90 }}>Mã CEO</th>
+                <th style={{ ...thStyle, width: 150 }}>Tên CEO</th>
+                <th style={{ ...thStyle, width: 90 }}>Thương hiệu</th>
+                <th style={{ ...thStyle, width: 110 }}>Mã sản phẩm</th>
+                <th style={{ ...thStyle, width: 200 }}>Tên sản phẩm</th>
+                <th style={{ ...thStyle, width: 60 }}>Đơn vị tính</th>
+                <th style={{ ...thStyle, width: 130 }}>Mã hóa đơn</th>
+                <th style={{ ...thStyle, width: 80 }}>Tháng</th>
+                <th style={{ ...thStyle, width: 140 }}>Thời gian</th>
+                <th style={{ ...thStyle, width: 90, textAlign: 'right' }}>Số lượng</th>
+                <th style={{ ...thStyle, width: 110, textAlign: 'right' }}>Đơn giá</th>
+                <th style={{ ...thStyle, width: 130, textAlign: 'right' }}>Thành tiền</th>
+                <th style={{ ...thStyle, width: 80, textAlign: 'center' }}>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((r, i) => (
+                <tr key={r.id} style={{ background: i % 2 === 0 ? 'white' : 'var(--mantine-color-gray-0)' }}>
+                  <td style={{ ...tdStyle, textAlign: 'center', color: 'var(--mantine-color-dimmed)' }}>
+                    {(curPage - 1) * PAGE_SIZE + i + 1}
+                  </td>
+                  <td style={{ ...tdStyle, fontFamily: 'monospace', fontWeight: 700 }}>{r.ceo}</td>
+                  <td style={{ ...tdStyle, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.ceoName}>
+                    {r.ceoName || '—'}
+                  </td>
+                  <td style={tdStyle}>{r.brand}</td>
+                  <td style={{ ...tdStyle, fontFamily: 'monospace', fontWeight: 700, color: 'var(--mantine-color-blue-7)' }}>
+                    {r.productCode}
+                  </td>
+                  <td style={{ ...tdStyle, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.productName}>
+                    {r.productName || '—'}
+                  </td>
+                  <td style={{ ...tdStyle, color: 'var(--mantine-color-dimmed)' }}>{r.unit || '—'}</td>
+                  <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11, color: 'var(--mantine-color-dark-4)' }}>
+                    {r.invoice || '—'}
+                  </td>
+                  <td style={tdStyle}>{r.month || '—'}</td>
+                  <td style={{ ...tdStyle, color: 'var(--mantine-color-dimmed)', fontSize: 11 }}>{r.date || '—'}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtQty(r.qty)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--mantine-color-dimmed)' }}>
+                    {r.unitPrice !== 0 ? fmtAmount(r.unitPrice) : '—'}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--mantine-color-green-7)', fontWeight: 600 }}>
+                    {fmtAmount(r.amount)}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    <Group gap={4} justify="center" wrap="nowrap">
+                      <Tooltip label="Sửa" withArrow>
+                        <ActionIcon size="sm" variant="subtle" color="blue" onClick={() => setFormRow(r)}>
+                          <IconPencil size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Xóa" withArrow>
+                        <ActionIcon size="sm" variant="subtle" color="red" onClick={() => setDelRow(r)}>
+                          <IconTrash size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Box>
+      )}
+
+      {filtered.length > PAGE_SIZE && (
+        <Group justify="center" py="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-2)', flexShrink: 0 }}>
+          <Pagination size="sm" total={pageCount} value={curPage} onChange={setPage} />
+        </Group>
+      )}
+
+      <SalesRowFormModal
+        opened={formRow !== undefined}
+        row={formRow}
+        onClose={() => setFormRow(undefined)}
+        onSubmit={handleSubmit}
+      />
+
+      <DeleteConfirmModal
+        opened={!!delRow}
+        entityLabel="dòng"
+        name={delRow ? `${delRow.productCode} — ${delRow.ceo}` : ''}
+        code={delRow?.invoice || undefined}
+        onClose={() => setDelRow(null)}
+        onConfirm={() => { if (delRow) deleteRow(delRow.id); setDelRow(null) }}
+        isDeleting={false}
+      />
+    </Stack>
+  )
+}

@@ -1,0 +1,53 @@
+{
+  "name": "hang-wu-desktop",
+  "private": true,
+  "version": "0.2.0",
+  "description": "Hằng Wonder Union — desktop app (offline)",
+  "author": {
+    "name": "Nguyễn Hữu Yên",
+    "email": "huuyen911@gmail.com"
+  },
+  "homepage": "https://github.com/huuyen911/hang-wu-desktop",
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "npm run typecheck && electron-vite build",
+    "build:win": "npm run build && node scripts/package-win.mjs",
+    "build:linux": "npm run build && node scripts/package-linux.mjs",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
+    "typecheck:web": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web"
+  },
+  "dependencies": {
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@mantine/core": "^9.2.1",
+    "@mantine/dates": "^9.2.1",
+    "@mantine/dropzone": "^9.2.1",
+    "@mantine/hooks": "^9.2.1",
+    "@mantine/notifications": "^9.2.1",
+    "@tabler/icons-react": "^3.44.0",
+    "@tailwindcss/vite": "^4.1.6",
+    "@tanstack/react-query": "^5.100.10",
+    "@types/node": "^22.10.5",
+    "@types/sql.js": "^1.4.9",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.3",
+    "@vitejs/plugin-react": "^4.5.0",
+    "dayjs": "^1.11.20",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.0",
+    "tailwindcss": "^4.1.6",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "xlsx": "^0.18.5"
+  }
+}
