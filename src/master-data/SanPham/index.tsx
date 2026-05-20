@@ -9,12 +9,14 @@ import {
   ActionIcon,
   Center,
   Group,
+  Tooltip,
 } from '@mantine/core'
 import { IconPencil, IconTrash, IconCheck, IconX } from '@tabler/icons-react'
 import type { SanPham, SanPhamFormValues, ThuongHieu } from './types'
 import { useCrudResource } from '@/hooks/useCrudResource'
 import { RESOURCES } from '@/lib/queryKeys'
 import { THUONG_HIEU_OPTIONS, brandColor } from '@/domain/constants'
+import { mantineTableProps } from '@/styles/table'
 import CrudShell from '@/components/crud/CrudShell'
 import FormModal from '@/components/crud/FormModal'
 import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
@@ -68,29 +70,29 @@ export default function SanPhamPage() {
     )
 
   const table = (
-    <Table stickyHeader striped highlightOnHover withTableBorder withColumnBorders>
+    <Table {...mantineTableProps}>
       <Table.Thead>
         <Table.Tr>
-          <Table.Th>Mã sản phẩm</Table.Th>
-          <Table.Th>Tên sản phẩm</Table.Th>
-          <Table.Th style={{ textAlign: 'center' }}>Quy cách</Table.Th>
-          <Table.Th>Thương hiệu</Table.Th>
-          <Table.Th style={{ textAlign: 'center' }}>Chính (Elvawell)</Table.Th>
-          <Table.Th style={{ textAlign: 'center' }}>Chính (Weilaiya)</Table.Th>
-          <Table.Th style={{ textAlign: 'center' }}>Thao tác</Table.Th>
+          <Table.Th scope="col">Mã sản phẩm</Table.Th>
+          <Table.Th scope="col">Tên sản phẩm</Table.Th>
+          <Table.Th scope="col" style={{ textAlign: 'center', width: 100 }}>Quy cách</Table.Th>
+          <Table.Th scope="col" style={{ width: 120 }}>Thương hiệu</Table.Th>
+          <Table.Th scope="col" style={{ textAlign: 'center', width: 130 }}>Chính (Elvawell)</Table.Th>
+          <Table.Th scope="col" style={{ textAlign: 'center', width: 130 }}>Chính (Weilaiya)</Table.Th>
+          <Table.Th scope="col" style={{ textAlign: 'center', width: 100 }}>Thao tác</Table.Th>
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
         {c.filtered.map((item) => (
           <Table.Tr key={item.id}>
             <Table.Td>
-              <Text size="sm" ff="monospace" fw={500}>{item.ma_san_pham}</Text>
+              <Text size="xs" ff="monospace" fw={500}>{item.ma_san_pham}</Text>
             </Table.Td>
             <Table.Td>
-              <Text size="sm">{item.ten_san_pham}</Text>
+              <Text size="xs">{item.ten_san_pham}</Text>
             </Table.Td>
             <Table.Td style={{ textAlign: 'center' }}>
-              <Text size="sm">{item.quy_cach}</Text>
+              <Text size="xs">{item.quy_cach}</Text>
             </Table.Td>
             <Table.Td>
               <Badge color={brandColor(item.thuong_hieu)} variant="light" size="sm">
@@ -104,13 +106,17 @@ export default function SanPhamPage() {
               <Center>{mainFlag(item.la_san_pham_chinh_weilaiya)}</Center>
             </Table.Td>
             <Table.Td style={{ textAlign: 'center' }}>
-              <Group gap={6} justify="center">
-                <ActionIcon variant="light" color="blue" onClick={() => c.openEdit(item)} title="Sửa">
-                  <IconPencil size={15} />
-                </ActionIcon>
-                <ActionIcon variant="light" color="red" onClick={() => c.setDeleteTarget(item)} title="Xóa">
-                  <IconTrash size={15} />
-                </ActionIcon>
+              <Group gap={6} justify="center" wrap="nowrap">
+                <Tooltip label="Sửa" withArrow>
+                  <ActionIcon variant="light" color="blue" size="sm" onClick={() => c.openEdit(item)} aria-label={`Sửa sản phẩm ${item.ma_san_pham}`}>
+                    <IconPencil size={14} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Xóa" withArrow>
+                  <ActionIcon variant="subtle" color="red" size="sm" onClick={() => c.setDeleteTarget(item)} aria-label={`Xoá sản phẩm ${item.ma_san_pham}`}>
+                    <IconTrash size={14} />
+                  </ActionIcon>
+                </Tooltip>
               </Group>
             </Table.Td>
           </Table.Tr>
@@ -122,7 +128,7 @@ export default function SanPhamPage() {
   return (
     <CrudShell
       title="Danh sách sản phẩm"
-      addLabel="+ Thêm sản phẩm"
+      addLabel="Thêm sản phẩm"
       onAdd={c.openCreate}
       search={c.search}
       onSearchChange={c.setSearch}
@@ -131,6 +137,8 @@ export default function SanPhamPage() {
       isLoading={c.isLoading}
       isEmpty={c.filtered.length === 0}
       emptyText={c.search ? 'Không tìm thấy sản phẩm phù hợp' : 'Chưa có sản phẩm nào'}
+      totalCount={c.items.length}
+      filteredCount={c.filtered.length}
       table={table}
     >
       <FormModal

@@ -10,6 +10,8 @@ pub struct DbState(pub Mutex<rusqlite::Connection>);
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir().expect("no app data dir");
             std::fs::create_dir_all(&data_dir).ok();
@@ -46,7 +48,6 @@ pub fn run() {
             commands::sales_session::delete_sales_session,
             // excel
             commands::excel::parse_excel_file,
-            commands::excel::parse_excel_bytes,
             commands::excel::export_excel_file,
             // backup
             commands::backup::build_backup,

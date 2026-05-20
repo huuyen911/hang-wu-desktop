@@ -8,6 +8,7 @@ import {
   Badge,
   ActionIcon,
   Group,
+  Tooltip,
 } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
@@ -17,6 +18,7 @@ import { useCrudResource } from '@/hooks/useCrudResource'
 import { api } from '@/lib/api'
 import { RESOURCES } from '@/lib/queryKeys'
 import { THUONG_HIEU_OPTIONS, brandColor } from '@/domain/constants'
+import { mantineTableProps } from '@/styles/table'
 import CrudShell from '@/components/crud/CrudShell'
 import FormModal from '@/components/crud/FormModal'
 import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
@@ -85,20 +87,20 @@ export default function NhomSanPhamPage() {
   )
 
   const table = (
-    <Table stickyHeader striped highlightOnHover withTableBorder withColumnBorders>
+    <Table {...mantineTableProps}>
       <Table.Thead>
         <Table.Tr>
-          <Table.Th>Tên nhóm sản phẩm</Table.Th>
-          <Table.Th style={{ width: 120 }}>Thương hiệu</Table.Th>
-          <Table.Th>Sản phẩm</Table.Th>
-          <Table.Th style={{ textAlign: 'center', width: 100 }}>Thao tác</Table.Th>
+          <Table.Th scope="col">Tên nhóm sản phẩm</Table.Th>
+          <Table.Th scope="col" style={{ width: 120 }}>Thương hiệu</Table.Th>
+          <Table.Th scope="col">Sản phẩm</Table.Th>
+          <Table.Th scope="col" style={{ textAlign: 'center', width: 100 }}>Thao tác</Table.Th>
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
         {c.filtered.map((item) => (
           <Table.Tr key={item.id}>
             <Table.Td>
-              <Text size="sm" fw={500}>{item.ten_nhom}</Text>
+              <Text size="xs" fw={500}>{item.ten_nhom}</Text>
             </Table.Td>
             <Table.Td>
               <Badge color={brandColor(item.thuong_hieu)} variant="light" size="sm">
@@ -112,7 +114,7 @@ export default function NhomSanPhamPage() {
                 item.san_pham_ids.map((spId) => {
                   const sp = sanPhamMap.get(spId)
                   return (
-                    <Text key={spId} size="sm">
+                    <Text key={spId} size="xs">
                       {sp ? `• ${sp.ma_san_pham} - ${sp.ten_san_pham}` : `• #${spId}`}
                     </Text>
                   )
@@ -120,13 +122,17 @@ export default function NhomSanPhamPage() {
               )}
             </Table.Td>
             <Table.Td style={{ textAlign: 'center' }}>
-              <Group gap={6} justify="center">
-                <ActionIcon variant="light" color="blue" onClick={() => c.openEdit(item)} title="Sửa">
-                  <IconPencil size={15} />
-                </ActionIcon>
-                <ActionIcon variant="light" color="red" onClick={() => c.setDeleteTarget(item)} title="Xóa">
-                  <IconTrash size={15} />
-                </ActionIcon>
+              <Group gap={6} justify="center" wrap="nowrap">
+                <Tooltip label="Sửa" withArrow>
+                  <ActionIcon variant="light" color="blue" size="sm" onClick={() => c.openEdit(item)} aria-label={`Sửa nhóm ${item.ten_nhom}`}>
+                    <IconPencil size={14} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Xóa" withArrow>
+                  <ActionIcon variant="subtle" color="red" size="sm" onClick={() => c.setDeleteTarget(item)} aria-label={`Xoá nhóm ${item.ten_nhom}`}>
+                    <IconTrash size={14} />
+                  </ActionIcon>
+                </Tooltip>
               </Group>
             </Table.Td>
           </Table.Tr>
@@ -138,7 +144,7 @@ export default function NhomSanPhamPage() {
   return (
     <CrudShell
       title="Danh sách nhóm sản phẩm"
-      addLabel="+ Thêm nhóm"
+      addLabel="Thêm nhóm"
       onAdd={c.openCreate}
       search={c.search}
       onSearchChange={c.setSearch}
@@ -147,6 +153,8 @@ export default function NhomSanPhamPage() {
       isLoading={c.isLoading}
       isEmpty={c.filtered.length === 0}
       emptyText={c.search ? 'Không tìm thấy nhóm sản phẩm phù hợp' : 'Chưa có nhóm sản phẩm nào'}
+      totalCount={c.items.length}
+      filteredCount={c.filtered.length}
       table={table}
     >
       <FormModal

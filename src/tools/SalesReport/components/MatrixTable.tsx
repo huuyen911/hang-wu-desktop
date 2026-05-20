@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Group, Text, Badge, Center } from '@mantine/core'
 import type { CEOSummary } from '../types'
 import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
@@ -48,9 +48,17 @@ export default function MatrixTable({
   // Hooks phải gọi vô điều kiện, TRƯỚC mọi early-return.
   const headerRowRef = useRef<HTMLTableRowElement>(null)
   const [totalsTop, setTotalsTop] = useState(42)
-  useLayoutEffect(() => {
-    if (headerRowRef.current) setTotalsTop(headerRowRef.current.offsetHeight)
-  }, [nhomGroups.length])
+  // ResizeObserver theo dõi header để cập nhật offset của hàng totals
+  // khi font/wrap/column count thay đổi (không chỉ khi nhomGroups đổi).
+  useEffect(() => {
+    const el = headerRowRef.current
+    if (!el) return
+    const update = () => setTotalsTop(el.offsetHeight)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const [modalCell, setModalCell] = useState<ModalCellInfo | null>(null)
 
   // Toàn bộ phép dẫn xuất nặng (dò cột, gom thùng theo CEO/nhóm, cộng tổng cột)
@@ -123,6 +131,11 @@ export default function MatrixTable({
       })),
     ]
 
+    // Tổng cột & tổng cuối luôn cộng từ giá trị thùng CHƯA làm tròn rồi mới
+    // round khi render (Math.round(total*100)/100). Các ô riêng lẻ cũng làm
+    // tròn lúc hiển thị → sum-of-visible có thể chênh tổng cột ≤ 0.01 thùng do
+    // cộng dồn sai số làm tròn; đây là hành vi chuẩn của bảng tính, ưu tiên
+    // chính xác hơn là "cộng đúng từng ô bằng tay".
     const colTotals = new Map<number | string, number>()
     let grandTotalThung = 0
     ceoData.forEach(({ colThungMap, totalThung }) => {
@@ -144,6 +157,7 @@ export default function MatrixTable({
   const W_STT = 48, W_MA = 96, W_TEN = 160, W_GRP = 120, W_TONG = 110
   const BG_HEAD = 'var(--mantine-color-gray-1)'
   const BG_TOTAL = 'var(--mantine-color-blue-1)'
+  const BG_TONG_COL = 'var(--mantine-color-gray-0)'
 
   const thTop: React.CSSProperties = { position: 'sticky', top: 0, zIndex: 3, background: BG_HEAD, padding: '7px 8px', fontSize: 12, fontWeight: 600, borderBottom: '2px solid var(--mantine-color-gray-3)', whiteSpace: 'nowrap' }
   const thCornerL = (left: number): React.CSSProperties => ({ ...thTop, left, zIndex: 4 })
@@ -161,15 +175,20 @@ export default function MatrixTable({
 
   return (
     <div style={{ flex: 1, overflow: 'auto', minWidth: 0, minHeight: 0 }}>
-      <style>{`.sr-matrix{border-collapse:separate!important;border-spacing:0!important}`}</style>
+      <style>{`
+        .sr-matrix{border-collapse:separate!important;border-spacing:0!important}
+        .sr-matrix td.sr-cell{transition:background 0.1s, box-shadow 0.1s}
+        .sr-matrix td.sr-cell-clickable:hover{background:var(--mantine-color-blue-2)!important;box-shadow:inset 0 0 0 1px var(--mantine-color-blue-4)}
+        .sr-matrix td.sr-cell-clickable:focus-visible{outline:2px solid var(--mantine-color-blue-5);outline-offset:-2px}
+      `}</style>
       <table className="sr-matrix" style={{ tableLayout: 'fixed', minWidth: W_STT + W_MA + W_TEN + columns.length * W_GRP + W_TONG }}>
         <thead>
           <tr ref={headerRowRef}>
-            <th style={{ ...thCornerL(0), minWidth: W_STT, textAlign: 'center', borderRight: '1px solid var(--mantine-color-gray-2)' }}>STT</th>
-            <th style={{ ...thCornerL(W_STT), minWidth: W_MA, borderRight: '1px solid var(--mantine-color-gray-2)' }}>Mã CEO</th>
-            <th style={{ ...thCornerL(W_STT + W_MA), minWidth: W_TEN, boxShadow: '2px 0 4px -1px rgba(0,0,0,0.12)' }}>Tên CEO</th>
+            <th scope="col" style={{ ...thCornerL(0), minWidth: W_STT, textAlign: 'center', borderRight: '1px solid var(--mantine-color-gray-2)' }}>STT</th>
+            <th scope="col" style={{ ...thCornerL(W_STT), minWidth: W_MA, borderRight: '1px solid var(--mantine-color-gray-2)' }}>Mã CEO</th>
+            <th scope="col" style={{ ...thCornerL(W_STT + W_MA), minWidth: W_TEN, boxShadow: '2px 0 4px -1px rgba(0,0,0,0.12)' }}>Tên CEO</th>
             {columns.map((col) => (
-              <th key={String(col.key)} title={col.subName ? `${col.name} — ${col.subName}` : col.name}
+              <th key={String(col.key)} scope="col" title={col.subName ? `${col.name} — ${col.subName}` : col.name}
                 style={{ ...thTop, width: W_GRP, textAlign: 'right', borderRight: '1px solid var(--mantine-color-gray-2)' }}>
                 <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: W_GRP - 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
@@ -184,7 +203,7 @@ export default function MatrixTable({
                 </div>
               </th>
             ))}
-            <th style={{ ...thCornerR, width: W_TONG, textAlign: 'right', boxShadow: 'inset 2px 0 0 var(--mantine-color-gray-4)' }}>Tổng thùng</th>
+            <th scope="col" style={{ ...thCornerR, width: W_TONG, textAlign: 'right', boxShadow: 'inset 2px 0 0 var(--mantine-color-gray-4)', background: BG_TONG_COL }}>Tổng thùng</th>
           </tr>
 
           <tr>
@@ -210,6 +229,7 @@ export default function MatrixTable({
             const tdBase: React.CSSProperties = { borderBottom: '1px solid var(--mantine-color-gray-1)', padding: '6px 8px', fontSize: 12 }
             const inMasterData = masterCEOCodeSet.has(ceo.ceo)
             const hasCrossBrand = crossBrands.size > 0
+            const tongRowBg = idx % 2 === 0 ? 'white' : 'var(--mantine-color-gray-1)'
 
             return (
               <tr key={ceo.ceo}>
@@ -228,24 +248,40 @@ export default function MatrixTable({
                 {columns.map((col) => {
                   const exactThung = colThungMap.get(col.key)
                   const thung = exactThung !== undefined ? Math.round(exactThung * 100) / 100 : null
+                  const hasData = thung !== null
                   return (
                     <td
                       key={String(col.key)}
-                      onClick={() => setModalCell({
+                      className={`sr-cell ${hasData ? 'sr-cell-clickable' : ''}`}
+                      onClick={hasData ? () => setModalCell({
                         ceo,
                         col,
                         thung: exactThung !== undefined ? exactThung : null,
                         entries: colProductsMap.get(col.key) ?? [],
                         brand,
-                      })}
-                      style={{ ...tdBase, width: W_GRP, textAlign: 'right', borderRight: '1px solid var(--mantine-color-gray-1)', background: thung !== null ? 'var(--mantine-color-blue-0)' : rowBg, color: thung !== null ? 'var(--mantine-color-blue-8)' : 'var(--mantine-color-gray-4)', cursor: 'pointer' }}
-                      title="Nhấn để xem chi tiết"
+                      }) : undefined}
+                      tabIndex={hasData ? 0 : -1}
+                      role={hasData ? 'button' : undefined}
+                      onKeyDown={hasData ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setModalCell({
+                            ceo,
+                            col,
+                            thung: exactThung !== undefined ? exactThung : null,
+                            entries: colProductsMap.get(col.key) ?? [],
+                            brand,
+                          })
+                        }
+                      } : undefined}
+                      style={{ ...tdBase, width: W_GRP, textAlign: 'right', borderRight: '1px solid var(--mantine-color-gray-1)', background: hasData ? 'var(--mantine-color-blue-0)' : rowBg, color: hasData ? 'var(--mantine-color-blue-8)' : 'var(--mantine-color-gray-4)', cursor: hasData ? 'pointer' : 'default' }}
+                      title={hasData ? `${col.name} — nhấn để xem chi tiết` : col.name}
                     >
-                      {thung !== null ? fmt.format(thung) : '—'}
+                      {hasData ? fmt.format(thung) : '—'}
                     </td>
                   )
                 })}
-                <td style={{ ...tdBase, ...tdRight(rowBg), width: W_TONG, textAlign: 'right', fontWeight: 600, color: 'var(--mantine-color-green-7)', boxShadow: 'inset 2px 0 0 var(--mantine-color-gray-3)' }}>
+                <td style={{ ...tdBase, ...tdRight(tongRowBg), width: W_TONG, textAlign: 'right', fontWeight: 700, color: 'var(--mantine-color-green-7)', boxShadow: 'inset 2px 0 0 var(--mantine-color-gray-3)' }}>
                   {totalThung > 0 ? fmt.format(Math.round(totalThung * 100) / 100) : '—'}
                 </td>
               </tr>

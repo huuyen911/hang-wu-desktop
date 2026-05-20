@@ -29,7 +29,7 @@ interface RestoredCounts {
   sales_session: number
 }
 
-const APP_VERSION = '0.2.0'
+const APP_VERSION = __APP_VERSION__
 
 const TABLE_LABELS: Record<string, string> = {
   san_pham: 'Sản phẩm',
@@ -109,41 +109,73 @@ export default function BackupPage() {
   }
 
   return (
-    <Box p="md" style={{ maxWidth: 760 }}>
-      <Group gap="sm" mb="xs">
-        <IconDatabase size={24} />
-        <Title order={4}>Sao lưu & Phục hồi hệ thống</Title>
+    <Box p="xl" style={{ maxWidth: 760 }}>
+      <Group gap="md" mb="xs" align="center" wrap="nowrap">
+        <Box
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: 'var(--mantine-color-blue-0)',
+            color: 'var(--mantine-color-blue-7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <IconDatabase size={22} />
+        </Box>
+        <Box style={{ flex: 1 }}>
+          <Group gap={8} align="baseline">
+            <Title order={4} style={{ letterSpacing: '-0.2px' }}>
+              Sao lưu & Phục hồi
+            </Title>
+            <Text size="xs" c="dimmed">v{APP_VERSION}</Text>
+          </Group>
+          <Text c="dimmed" size="sm" mt={2}>
+            Sao lưu / phục hồi toàn bộ dữ liệu: sản phẩm, nhóm sản phẩm, CEO và lịch sử báo cáo
+            bán hàng. Định dạng file JSON.
+          </Text>
+        </Box>
       </Group>
-      <Text c="dimmed" size="sm" mb="lg">
-        Sao lưu/phục hồi <b>toàn bộ</b> dữ liệu: sản phẩm, nhóm sản phẩm, CEO và lịch sử báo
-        cáo bán hàng. Định dạng file là JSON.
-      </Text>
 
-      <Stack gap="md">
+      <Stack gap="md" mt="lg">
         <Card withBorder radius="md" padding="lg">
-          <Group justify="space-between" align="flex-start" wrap="nowrap">
-            <div>
-              <Text fw={600}>Xuất bản sao lưu</Text>
-              <Text size="sm" c="dimmed" mt={4}>
-                Ghi toàn bộ dữ liệu hiện tại ra 1 file JSON. Bạn sẽ được chọn nơi lưu file.
+          <Group justify="space-between" align="flex-start" wrap="nowrap" gap="lg">
+            <Box style={{ flex: 1 }}>
+              <Group gap={8} mb={4} align="center">
+                <IconDownload size={16} color="var(--mantine-color-blue-6)" />
+                <Text fw={600}>Xuất bản sao lưu</Text>
+              </Group>
+              <Text size="sm" c="dimmed" style={{ lineHeight: 1.55 }}>
+                Ghi toàn bộ dữ liệu hiện tại ra một file JSON. Bạn sẽ được chọn nơi lưu file.
               </Text>
-            </div>
+            </Box>
             <Button
-              leftSection={<IconDownload size={18} />}
+              leftSection={<IconDownload size={16} />}
               onClick={handleExport}
               loading={exporting}
               disabled={importing}
             >
-              Xuất bản sao lưu…
+              Xuất bản sao lưu
             </Button>
           </Group>
         </Card>
 
-        <Card withBorder radius="md" padding="lg">
-          <Text fw={600}>Phục hồi từ file sao lưu</Text>
-          <Text size="sm" c="dimmed" mt={4}>
-            Chọn 1 file sao lưu để nạp lại. Thao tác này diễn ra trọn vẹn trong một giao dịch —
-            nếu có lỗi, dữ liệu hiện tại được giữ nguyên.
+        <Card
+          withBorder
+          radius="md"
+          padding="lg"
+          style={{ borderLeft: '3px solid var(--mantine-color-red-5)' }}
+        >
+          <Group gap={8} mb={4} align="center">
+            <IconAlertTriangle size={16} color="var(--mantine-color-red-6)" />
+            <Text fw={600}>Phục hồi từ file sao lưu</Text>
+          </Group>
+          <Text size="sm" c="dimmed" mt={2} style={{ lineHeight: 1.55 }}>
+            Chọn một file sao lưu để nạp lại. Thao tác diễn ra trong một giao dịch — nếu lỗi,
+            dữ liệu hiện tại được giữ nguyên.
           </Text>
           <Alert
             color="red"
@@ -159,12 +191,12 @@ export default function BackupPage() {
             <Button
               color="red"
               variant="filled"
-              leftSection={<IconUpload size={18} />}
+              leftSection={<IconUpload size={16} />}
               onClick={() => setConfirmOpen(true)}
               loading={importing}
               disabled={exporting}
             >
-              Phục hồi từ file…
+              Phục hồi từ file
             </Button>
           </Group>
         </Card>

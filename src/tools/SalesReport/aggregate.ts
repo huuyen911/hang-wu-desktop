@@ -70,15 +70,19 @@ export function aggregateRows(rows: SalesRow[]): ParsedReport {
         lines: [],
       })
     const entry = productMap.get(product)!
-    entry.qty += row.qty
-    entry.amount += row.amount
+    const qty = Number.isFinite(row.qty) ? row.qty : 0
+    const amount = Number.isFinite(row.amount) ? row.amount : 0
+    const unitPrice = Number.isFinite(row.unitPrice) ? row.unitPrice : 0
+    entry.qty += qty
+    entry.amount += amount
     if (row.invoice) entry.invoices.add(row.invoice)
-    if (row.unitPrice !== 0) entry.prices.add(row.unitPrice)
+    // Bỏ NaN (NaN !== NaN nên Set sẽ phình ra) và bỏ 0 vì 0 không phải đơn giá.
+    if (unitPrice !== 0) entry.prices.add(unitPrice)
     entry.lines.push({
       invoice: row.invoice,
-      qty: row.qty,
-      unitPrice: row.unitPrice,
-      amount: row.amount,
+      qty,
+      unitPrice,
+      amount,
       date: row.date,
     })
   }

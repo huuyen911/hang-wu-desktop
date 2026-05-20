@@ -76,7 +76,7 @@ pub fn list_sales_session(state: State<DbState>) -> Result<Vec<SalesSession>, St
     let mut stmt = db
         .prepare(
             "SELECT id, ten, file_name, row_count, created_at, updated_at
-             FROM sales_session ORDER BY created_at DESC",
+             FROM sales_session ORDER BY updated_at DESC, id DESC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map([], row_to_session).map_err(|e| e.to_string())?;
@@ -127,7 +127,7 @@ pub fn get_sales_session(
 pub fn create_sales_session(
     state: State<DbState>,
     data: CreateSessionBody,
-) -> Result<SalesSession, String> {
+) -> Result<SalesSessionDetail, String> {
     let row_count = data.rows.len() as i64;
     let data_json = serde_json::to_string(&data.rows).map_err(|e| e.to_string())?;
     let db = state.0.lock().map_err(|e| e.to_string())?;
@@ -144,7 +144,18 @@ pub fn create_sales_session(
              FROM sales_session WHERE id=?1",
         )
         .map_err(|e| e.to_string())?;
-    stmt.query_row([id], row_to_session).map_err(|e| e.to_string())
+    let meta = stmt
+        .query_row([id], row_to_session)
+        .map_err(|e| e.to_string())?;
+    Ok(SalesSessionDetail {
+        id: meta.id,
+        ten: meta.ten,
+        file_name: meta.file_name,
+        row_count: meta.row_count,
+        rows: data.rows,
+        created_at: meta.created_at,
+        updated_at: meta.updated_at,
+    })
 }
 
 #[tauri::command]

@@ -44,20 +44,44 @@ fn cell_str(cell: &Data) -> String {
     }
 }
 
+/// Phân tích số có thể đến từ Excel ở dạng chuỗi với dấu ngăn nghìn / thập phân
+/// hỗn hợp: "1.234.567" (VN, không thập phân), "1.234,56" (VN), "1,234.56" (US),
+/// "1234,5" (VN ngắn), "1234.56" (chuẩn). Trả về None nếu không phải số.
+fn parse_localized_number(raw: &str) -> Option<f64> {
+    let s: String = raw.chars().filter(|c| !c.is_whitespace() && *c != '\u{00a0}').collect();
+    if s.is_empty() {
+        return None;
+    }
+    let has_dot = s.contains('.');
+    let has_comma = s.contains(',');
+    let normalized = if has_dot && has_comma {
+        // Dấu xuất hiện sau cùng là dấu thập phân; dấu còn lại là ngăn nghìn.
+        let last_dot = s.rfind('.').unwrap();
+        let last_comma = s.rfind(',').unwrap();
+        if last_comma > last_dot {
+            s.replace('.', "").replace(',', ".")
+        } else {
+            s.replace(',', "")
+        }
+    } else if has_comma {
+        if s.matches(',').count() > 1 {
+            s.replace(',', "")
+        } else {
+            s.replace(',', ".")
+        }
+    } else if has_dot && s.matches('.').count() > 1 {
+        s.replace('.', "")
+    } else {
+        s
+    };
+    normalized.parse::<f64>().ok().filter(|f| f.is_finite())
+}
+
 fn cell_to_f64(cell: &Data) -> f64 {
     match cell {
-        Data::Float(f) => *f,
+        Data::Float(f) if f.is_finite() => *f,
         Data::Int(i) => *i as f64,
-        Data::String(s) => {
-            let cleaned = s.replace(',', ".").replace([' ', '\u{00a0}'], "");
-            let cleaned = if cleaned.matches('.').count() > 1 {
-                let parts: Vec<&str> = cleaned.rsplitn(2, '.').collect();
-                format!("{}.{}", parts[1].replace('.', ""), parts[0])
-            } else {
-                cleaned
-            };
-            cleaned.parse().unwrap_or(0.0)
-        }
+        Data::String(s) => parse_localized_number(s).unwrap_or(0.0),
         _ => 0.0,
     }
 }
@@ -66,14 +90,7 @@ fn parse_qty(cell: &Data) -> Option<f64> {
     match cell {
         Data::Float(f) if f.is_finite() => Some(*f),
         Data::Int(i) => Some(*i as f64),
-        Data::String(s) => {
-            let t = s.trim();
-            if t.is_empty() {
-                return None;
-            }
-            let cleaned = t.replace(',', ".").replace([' ', '\u{00a0}'], "");
-            cleaned.parse::<f64>().ok().filter(|f| f.is_finite())
-        }
+        Data::String(s) => parse_localized_number(s),
         _ => None,
     }
 }
@@ -116,14 +133,14 @@ fn format_month(cell: &Data) -> String {
     }
 }
 
-fn make_row_id() -> String {
+fn make_row_id(counter: u64) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
     let r: u64 = rand::random();
-    format!("r_{:x}_{:x}", ts, r & 0xfffffff)
+    format!("r_{:x}_{:x}_{:x}", ts, r, counter)
 }
 
 fn get(row: &[Data], idx: usize) -> &Data {
@@ -139,6 +156,7 @@ fn is_data_row(row: &[Data]) -> bool {
 
 fn parse_sheet(sheet: &calamine::Range<Data>) -> Vec<SalesRow> {
     let mut result = Vec::new();
+    let mut counter: u64 = 0;
     for row in sheet.rows() {
         if !is_data_row(row) {
             continue;
@@ -149,8 +167,9 @@ fn parse_sheet(sheet: &calamine::Range<Data>) -> Vec<SalesRow> {
         if ceo.is_empty() || brand.is_empty() || product.is_empty() {
             continue;
         }
+        counter += 1;
         result.push(SalesRow {
-            id: make_row_id(),
+            id: make_row_id(counter),
             ceo,
             ceo_name: cell_str(get(row, COL_CEO_NAME)),
             brand,
@@ -176,19 +195,6 @@ fn parse_sheet(sheet: &calamine::Range<Data>) -> Vec<SalesRow> {
 pub fn parse_excel_file(path: String) -> Result<Vec<SalesRow>, String> {
     let mut workbook: Xlsx<_> =
         open_workbook(&path).map_err(|e| format!("Không mở được file: {}", e))?;
-    let sheet = workbook
-        .worksheet_range_at(0)
-        .ok_or("File không có sheet nào")?
-        .map_err(|e| format!("Lỗi đọc sheet: {}", e))?;
-    Ok(parse_sheet(&sheet))
-}
-
-#[tauri::command]
-pub fn parse_excel_bytes(bytes: Vec<u8>) -> Result<Vec<SalesRow>, String> {
-    use std::io::Cursor;
-    let cursor = Cursor::new(bytes);
-    let mut workbook: Xlsx<_> =
-        Xlsx::new(cursor).map_err(|e| format!("Không mở được file: {}", e))?;
     let sheet = workbook
         .worksheet_range_at(0)
         .ok_or("File không có sheet nào")?

@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
+import { Center, Loader } from '@mantine/core'
 import { getToolById } from '@/tools/registry'
 
 export default function ToolPage() {
@@ -11,11 +12,7 @@ export default function ToolPage() {
   const Component = tool.component
 
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center h-64 text-gray-400">Đang tải...</div>
-      }
-    >
+    <Suspense fallback={<Center h={200}><Loader /></Center>}>
       <Component />
     </Suspense>
   )

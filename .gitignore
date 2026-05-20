@@ -6,3 +6,4 @@ release
 .DS_Store
 .claude
 src-tauri/target
+hang-wu.key*

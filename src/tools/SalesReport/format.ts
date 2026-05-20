@@ -7,5 +7,12 @@ export const fmt = nf
 export const fmtQty = (n: number) => nf.format(n)
 export const fmtAmount = (n: number) => cf.format(n)
 
+/**
+ * Hiển thị tiền hoặc "—" nếu giá trị là 0 / không hữu hạn. Dùng cho ô đơn giá:
+ * 0 nghĩa là "không nhập", `NaN`/`Infinity` thì bảo vệ khỏi parser lỗi.
+ */
+export const fmtAmountOrDash = (n: number): string =>
+  Number.isFinite(n) && n !== 0 ? cf.format(n) : '—'
+
 /** Làm tròn 2 chữ số thập phân (dùng cho số lượng thùng). */
 export const round2 = (n: number) => Math.round(n * 100) / 100

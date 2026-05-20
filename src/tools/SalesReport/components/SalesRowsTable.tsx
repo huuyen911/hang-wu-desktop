@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
 import {
-  Box, Group, Stack, Text, Button, TextInput, Select, ActionIcon,
+  Box, Group, Stack, Text, Button, Select, ActionIcon,
   Pagination, Center, Tooltip,
 } from '@mantine/core'
-import { IconX, IconPlus, IconPencil, IconTrash, IconSearch } from '@tabler/icons-react'
+import { IconPlus, IconPencil, IconTrash } from '@tabler/icons-react'
 import { normalizeSearch } from '@/utils/search'
 import type { SalesRow } from '../types'
-import { fmtQty, fmtAmount } from '../format'
+import { fmtQty, fmtAmount, fmtAmountOrDash } from '../format'
 import { useSalesRows } from '../hooks/useSalesRows'
 import SalesRowFormModal from './SalesRowFormModal'
 import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
+import SearchInput from './SearchInput'
+import { thSticky, tdBase, rowBg } from '../utils/tableStyles'
 
 const PAGE_SIZE = 50
 
@@ -27,10 +29,18 @@ export default function SalesRowsTable() {
   const [formRow, setFormRow] = useState<SalesRow | null | undefined>(undefined)
   const [delRow, setDelRow] = useState<SalesRow | null>(null)
 
-  const ceoOptions = useMemo(
-    () => [...new Set(list.map((r) => r.ceo).filter(Boolean))].sort().map((v) => ({ value: v, label: v })),
-    [list],
-  )
+  const ceoOptions = useMemo(() => {
+    const nameMap = new Map<string, string>()
+    list.forEach((r) => {
+      if (!r.ceo) return
+      if (!nameMap.has(r.ceo) || (!nameMap.get(r.ceo) && r.ceoName)) {
+        nameMap.set(r.ceo, r.ceoName ?? '')
+      }
+    })
+    return [...nameMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, 'vi'))
+      .map(([ceo, name]) => ({ value: ceo, label: name ? `${ceo} — ${name}` : ceo }))
+  }, [list])
   const brandOptions = useMemo(
     () => [...new Set(list.map((r) => r.brand).filter(Boolean))].sort(),
     [list],
@@ -80,15 +90,8 @@ export default function SalesRowsTable() {
     setFormRow(undefined)
   }
 
-  const thStyle: React.CSSProperties = {
-    position: 'sticky', top: 0, zIndex: 1, background: 'var(--mantine-color-gray-1)',
-    padding: '7px 8px', fontSize: 12, fontWeight: 600,
-    borderBottom: '2px solid var(--mantine-color-gray-3)', whiteSpace: 'nowrap', textAlign: 'left',
-  }
-  const tdStyle: React.CSSProperties = {
-    padding: '5px 8px', fontSize: 12, borderBottom: '1px solid var(--mantine-color-gray-1)',
-    whiteSpace: 'nowrap',
-  }
+  const thStyle = thSticky
+  const tdStyle = tdBase
 
   return (
     <Stack gap={0} style={{ flex: 1, minHeight: 0 }}>
@@ -109,7 +112,12 @@ export default function SalesRowsTable() {
           value={ceoFilter}
           onChange={(v) => { setCeoFilter(v); setPage(1) }}
           clearable searchable size="xs"
-          style={{ minWidth: 140 }}
+          style={{ minWidth: 160 }}
+          filter={({ options, search }) =>
+            options.filter((opt) =>
+              'group' in opt ? true : normalizeSearch(opt.label).includes(normalizeSearch(search)),
+            )
+          }
         />
         <Select
           placeholder="Thương hiệu"
@@ -119,31 +127,17 @@ export default function SalesRowsTable() {
           clearable searchable size="xs"
           style={{ minWidth: 130 }}
         />
-        <TextInput
+        <SearchInput
           placeholder="Mã / tên sản phẩm"
           value={productSearch}
-          onChange={(e) => { setProductSearch(e.target.value); setPage(1) }}
-          size="xs"
-          leftSection={<IconSearch size={13} />}
-          rightSection={productSearch
-            ? <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => { setProductSearch(''); setPage(1) }}>
-                <IconX size={11} />
-              </ActionIcon>
-            : null}
-          style={{ minWidth: 180 }}
+          onChange={(v) => { setProductSearch(v); setPage(1) }}
+          minWidth={180}
         />
-        <TextInput
+        <SearchInput
           placeholder="Mã hóa đơn"
           value={invoiceSearch}
-          onChange={(e) => { setInvoiceSearch(e.target.value); setPage(1) }}
-          size="xs"
-          leftSection={<IconSearch size={13} />}
-          rightSection={invoiceSearch
-            ? <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => { setInvoiceSearch(''); setPage(1) }}>
-                <IconX size={11} />
-              </ActionIcon>
-            : null}
-          style={{ minWidth: 150 }}
+          onChange={(v) => { setInvoiceSearch(v); setPage(1) }}
+          minWidth={150}
         />
         <Select
           placeholder="Tháng"
@@ -183,25 +177,25 @@ export default function SalesRowsTable() {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
             <thead>
               <tr>
-                <th style={{ ...thStyle, width: 48, textAlign: 'center' }}>STT</th>
-                <th style={{ ...thStyle, width: 90 }}>Mã CEO</th>
-                <th style={{ ...thStyle, width: 150 }}>Tên CEO</th>
-                <th style={{ ...thStyle, width: 90 }}>Thương hiệu</th>
-                <th style={{ ...thStyle, width: 110 }}>Mã sản phẩm</th>
-                <th style={{ ...thStyle, width: 200 }}>Tên sản phẩm</th>
-                <th style={{ ...thStyle, width: 60 }}>Đơn vị tính</th>
-                <th style={{ ...thStyle, width: 130 }}>Mã hóa đơn</th>
-                <th style={{ ...thStyle, width: 80 }}>Tháng</th>
-                <th style={{ ...thStyle, width: 140 }}>Thời gian</th>
-                <th style={{ ...thStyle, width: 90, textAlign: 'right' }}>Số lượng</th>
-                <th style={{ ...thStyle, width: 110, textAlign: 'right' }}>Đơn giá</th>
-                <th style={{ ...thStyle, width: 130, textAlign: 'right' }}>Thành tiền</th>
-                <th style={{ ...thStyle, width: 80, textAlign: 'center' }}>Thao tác</th>
+                <th scope="col" style={{ ...thStyle, width: 48, textAlign: 'center' }}>STT</th>
+                <th scope="col" style={{ ...thStyle, width: 90 }}>Mã CEO</th>
+                <th scope="col" style={{ ...thStyle, width: 150 }}>Tên CEO</th>
+                <th scope="col" style={{ ...thStyle, width: 90 }}>Thương hiệu</th>
+                <th scope="col" style={{ ...thStyle, width: 110 }}>Mã sản phẩm</th>
+                <th scope="col" style={{ ...thStyle, width: 200 }}>Tên sản phẩm</th>
+                <th scope="col" style={{ ...thStyle, width: 60 }}>Đơn vị tính</th>
+                <th scope="col" style={{ ...thStyle, width: 130 }}>Mã hóa đơn</th>
+                <th scope="col" style={{ ...thStyle, width: 80 }}>Tháng</th>
+                <th scope="col" style={{ ...thStyle, width: 140 }}>Thời gian</th>
+                <th scope="col" style={{ ...thStyle, width: 90, textAlign: 'right' }}>Số lượng</th>
+                <th scope="col" style={{ ...thStyle, width: 110, textAlign: 'right' }}>Đơn giá</th>
+                <th scope="col" style={{ ...thStyle, width: 130, textAlign: 'right' }}>Thành tiền</th>
+                <th scope="col" style={{ ...thStyle, width: 80, textAlign: 'center' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {pageRows.map((r, i) => (
-                <tr key={r.id} style={{ background: i % 2 === 0 ? 'white' : 'var(--mantine-color-gray-0)' }}>
+                <tr key={r.id} style={{ background: rowBg(i) }}>
                   <td style={{ ...tdStyle, textAlign: 'center', color: 'var(--mantine-color-dimmed)' }}>
                     {(curPage - 1) * PAGE_SIZE + i + 1}
                   </td>
@@ -224,7 +218,7 @@ export default function SalesRowsTable() {
                   <td style={{ ...tdStyle, color: 'var(--mantine-color-dimmed)', fontSize: 11 }}>{r.date || '—'}</td>
                   <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtQty(r.qty)}</td>
                   <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--mantine-color-dimmed)' }}>
-                    {r.unitPrice !== 0 ? fmtAmount(r.unitPrice) : '—'}
+                    {fmtAmountOrDash(r.unitPrice)}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--mantine-color-green-7)', fontWeight: 600 }}>
                     {fmtAmount(r.amount)}
@@ -232,12 +226,12 @@ export default function SalesRowsTable() {
                   <td style={{ ...tdStyle, textAlign: 'center' }}>
                     <Group gap={4} justify="center" wrap="nowrap">
                       <Tooltip label="Sửa" withArrow>
-                        <ActionIcon size="sm" variant="subtle" color="blue" onClick={() => setFormRow(r)}>
+                        <ActionIcon size="sm" variant="subtle" color="blue" onClick={() => setFormRow(r)} aria-label={`Sửa dòng ${r.productCode}`}>
                           <IconPencil size={14} />
                         </ActionIcon>
                       </Tooltip>
                       <Tooltip label="Xóa" withArrow>
-                        <ActionIcon size="sm" variant="subtle" color="red" onClick={() => setDelRow(r)}>
+                        <ActionIcon size="sm" variant="subtle" color="red" onClick={() => setDelRow(r)} aria-label={`Xoá dòng ${r.productCode}`}>
                           <IconTrash size={14} />
                         </ActionIcon>
                       </Tooltip>

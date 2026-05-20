@@ -19,6 +19,7 @@ import { notifications } from '@mantine/notifications'
 import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
 import { useSalesSessions } from '../hooks/useSalesSessions'
 import type { SalesSessionMeta } from '../types'
+import { mantineTableProps } from '@/styles/table'
 
 interface Props {
   onOpen: (id: number) => void
@@ -98,15 +99,16 @@ export default function SessionHistory({ onOpen }: Props) {
           Chưa có phiên nào. Import một file Excel để bắt đầu.
         </Text>
       ) : (
-        <Table withTableBorder withColumnBorders highlightOnHover verticalSpacing="xs" fz="sm">
+        <Table {...mantineTableProps}>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th style={{ width: 36, textAlign: 'center' }}>#</Table.Th>
-              <Table.Th>Tên phiên</Table.Th>
-              <Table.Th>File</Table.Th>
-              <Table.Th style={{ width: 80, textAlign: 'center' }}>Số dòng</Table.Th>
-              <Table.Th style={{ width: 140 }}>Ngày import</Table.Th>
-              <Table.Th style={{ width: 100, textAlign: 'center' }}>Thao tác</Table.Th>
+              <Table.Th scope="col" style={{ width: 36, textAlign: 'center' }}>#</Table.Th>
+              <Table.Th scope="col">Tên phiên</Table.Th>
+              <Table.Th scope="col">File</Table.Th>
+              <Table.Th scope="col" style={{ width: 80, textAlign: 'center' }}>Số dòng</Table.Th>
+              <Table.Th scope="col" style={{ width: 140 }}>Ngày import</Table.Th>
+              <Table.Th scope="col" style={{ width: 150 }}>Cập nhật gần nhất</Table.Th>
+              <Table.Th scope="col" style={{ width: 100, textAlign: 'center' }}>Thao tác</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -116,7 +118,7 @@ export default function SessionHistory({ onOpen }: Props) {
                   {i + 1}
                 </Table.Td>
                 <Table.Td>
-                  <Text fw={600} size="sm">
+                  <Text fw={600} size="xs">
                     {s.ten}
                   </Text>
                 </Table.Td>
@@ -136,19 +138,28 @@ export default function SessionHistory({ onOpen }: Props) {
                   </Text>
                 </Table.Td>
                 <Table.Td>
+                  {s.updated_at !== s.created_at ? (
+                    <Text size="xs" c="blue.7" fw={600}>
+                      {fmtTime(s.updated_at)}
+                    </Text>
+                  ) : (
+                    <Text size="xs" c="dimmed">—</Text>
+                  )}
+                </Table.Td>
+                <Table.Td>
                   <Group gap={4} justify="center" wrap="nowrap">
                     <Tooltip label="Mở phiên">
-                      <ActionIcon variant="light" color="blue" size="sm" onClick={() => onOpen(s.id)}>
+                      <ActionIcon variant="light" color="blue" size="sm" onClick={() => onOpen(s.id)} aria-label={`Mở phiên ${s.ten}`}>
                         <IconFolderOpen size={14} />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Đổi tên">
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => startRename(s)}>
+                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => startRename(s)} aria-label={`Đổi tên phiên ${s.ten}`}>
                         <IconPencil size={14} />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Xóa">
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => setDeleteTarget(s)}>
+                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => setDeleteTarget(s)} aria-label={`Xoá phiên ${s.ten}`}>
                         <IconTrash size={14} />
                       </ActionIcon>
                     </Tooltip>

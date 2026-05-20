@@ -1,6 +1,6 @@
 {
   "productName": "Hang Wonder Union",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "com.hangwu.desktop",
   "build": {
     "beforeDevCommand": "npm run dev:vite",
@@ -31,8 +31,19 @@
     },
     "windows": {
       "nsis": {
-        "installMode": "perMachine"
+        "installMode": "currentUser"
       }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "endpoints": [
+        "https://github.com/huuyen911/hang-wu-desktop/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQzNEJGNTQ5RjUyNUFCMTEKUldRUnF5WDFTZlZMUTFRaG8vSEEyV2UwMTBzaW5nbnc0OFFQN3JEc3lDeWRmNTF3ZXlWK0hhN1gK"
     }
   }
 }

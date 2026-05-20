@@ -3,7 +3,7 @@ import { Box, Group, Stack, Text, Badge, Center, Table } from '@mantine/core'
 import { IconSearch } from '@tabler/icons-react'
 import type { CEOSummary } from '../types'
 import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
-import { fmt, fmtQty, fmtAmount, round2 } from '../format'
+import { fmt, fmtQty, fmtAmount, fmtAmountOrDash, round2 } from '../format'
 import BrandTag from './BrandTag'
 
 interface Props {
@@ -211,7 +211,7 @@ export default function CEODetailTable({
                                 {line.date || '—'}
                               </Table.Td>
                               <Table.Td style={{ textAlign: 'right', color: 'var(--mantine-color-dimmed)' }}>
-                                {line.unitPrice !== 0 ? fmtAmount(line.unitPrice) : '—'}
+                                {fmtAmountOrDash(line.unitPrice)}
                               </Table.Td>
                               <Table.Td style={{ textAlign: 'right', color: 'var(--mantine-color-green-7)', fontWeight: 600 }}>
                                 {fmtAmount(line.amount)}

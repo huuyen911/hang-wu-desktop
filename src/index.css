@@ -1,7 +1,6 @@
 @import "@fontsource-variable/inter";
 @import "@mantine/core/styles.css";
 @import "@mantine/notifications/styles.css";
-@import "@mantine/dropzone/styles.css";
 @import "tailwindcss";
 
 :root {
@@ -10,4 +9,13 @@
 
 * {
   font-family: var(--font-inter) !important;
+}
+
+/* Đồng bộ style cho mọi Mantine <Table>: header dùng nền xám nhạt, font-weight
+   đậm hơn, viền dưới rõ — khớp với các bảng HTML tự dựng (xem
+   src/styles/table.ts). */
+.mantine-Table-thead .mantine-Table-th {
+  background: var(--mantine-color-gray-1);
+  font-weight: 600;
+  border-bottom: 2px solid var(--mantine-color-gray-3);
 }

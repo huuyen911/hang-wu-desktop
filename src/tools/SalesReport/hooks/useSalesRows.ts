@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { notifications } from '@mantine/notifications'
 import { api } from '@/lib/api'
@@ -38,23 +38,73 @@ function subscribeActiveId(l: () => void): () => void {
 }
 
 // Autosave gộp nhiều thao tác liên tiếp thành 1 lần ghi DB.
+// Hàng đợi nối tiếp (chain) để PUT cũ-mới không bao giờ chạy chồng nhau và sai
+// thứ tự — nếu user edit lại khi 1 PUT đang chạy, payload mới được xếp sau và
+// gửi đi ngay khi PUT trước hoàn tất.
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let pendingSnapshot: { qc: QueryClient; id: number; rows: SalesRow[] } | null = null
+let inFlight: Promise<void> = Promise.resolve()
+
+function runSave(qc: QueryClient, id: number, rows: SalesRow[]): Promise<void> {
+  return api
+    .put(`${EP}/${id}`, { rows })
+    .then(() => {
+      qc.invalidateQueries({ queryKey: SESSION_LIST_KEY })
+    })
+    .catch((e) => {
+      notifications.show({
+        title: 'Lưu phiên thất bại',
+        message: e instanceof Error ? e.message : 'Lỗi không xác định',
+        color: 'red',
+      })
+    })
+}
+
+/** Gửi snapshot đang chờ ngay lập tức, bỏ qua phần còn lại của debounce. */
+export function flushSavePending(): Promise<void> {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  if (!pendingSnapshot) return inFlight
+  const snap = pendingSnapshot
+  pendingSnapshot = null
+  inFlight = inFlight.catch(() => undefined).then(() => runSave(snap.qc, snap.id, snap.rows))
+  return inFlight
+}
 
 function scheduleSave(qc: QueryClient, id: number, rows: SalesRow[]) {
+  pendingSnapshot = { qc, id, rows }
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     saveTimer = null
-    api
-      .put(`${EP}/${id}`, { rows })
-      .then(() => qc.invalidateQueries({ queryKey: SESSION_LIST_KEY }))
-      .catch((e) =>
-        notifications.show({
-          title: 'Lưu phiên thất bại',
-          message: e instanceof Error ? e.message : 'Lỗi không xác định',
-          color: 'red',
-        }),
-      )
+    void flushSavePending()
   }, 500)
+}
+
+// Khi cửa sổ đóng: Tauri cho phép chặn close để await PUT cuối. Đăng ký 1 lần
+// ở module-level, không phụ thuộc vòng đời React.
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    void flushSavePending()
+  })
+  void (async () => {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      const win = getCurrentWindow()
+      await win.onCloseRequested(async (e) => {
+        if (!pendingSnapshot && !saveTimer) return
+        e.preventDefault()
+        try {
+          await flushSavePending()
+        } finally {
+          await win.destroy()
+        }
+      })
+    } catch {
+      // chạy ngoài Tauri (vite preview thuần) — bỏ qua
+    }
+  })()
 }
 
 export function useSalesRows() {
@@ -62,13 +112,22 @@ export function useSalesRows() {
 
   const activeId = useSyncExternalStore(subscribeActiveId, () => activeIdStore)
 
+  // Khi chưa có phiên đang mở, dùng key dạng [..., null] thay vì giả id=-1 để
+  // tránh tạo cache entry rác. Query luôn `enabled: activeId != null`.
   const { data: session = null, isLoading } = useQuery<SalesSession | null>({
-    queryKey: sessionDetailKey(activeId ?? -1),
-    queryFn: () =>
-      activeId != null ? api.get<SalesSession>(`${EP}/${activeId}`) : null,
+    queryKey: activeId != null ? sessionDetailKey(activeId) : (['sales-sessions', 'detail', null] as const),
+    queryFn: () => api.get<SalesSession>(`${EP}/${activeId}`),
     enabled: activeId != null,
-    staleTime: Infinity,
   })
+
+  // Flush autosave khi hook unmount (rời màn) hoặc cửa sổ đóng. Tauri close
+  // không await được Promise nhưng listener kích hoạt PUT ngay, gần như luôn
+  // kịp hoàn tất trước khi process exit. Đăng ký 1 lần ở module-level.
+  useEffect(() => {
+    return () => {
+      void flushSavePending()
+    }
+  }, [])
 
   const setActiveId = useCallback((id: number | null) => setActiveIdStore(id), [])
 

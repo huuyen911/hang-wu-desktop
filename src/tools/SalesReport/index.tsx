@@ -7,7 +7,7 @@ import FileDropZone from './FileDropZone'
 import DataView from './components/DataView'
 import ImportNameModal from './components/ImportNameModal'
 import SessionHistory from './components/SessionHistory'
-import { parseExcelFile } from './parser'
+import { parseExcelByPath } from './parser'
 import { useSalesRows } from './hooks/useSalesRows'
 import { useSalesSessions, sessionDetailKey } from './hooks/useSalesSessions'
 import type { SalesRow } from './types'
@@ -22,6 +22,11 @@ function stripExt(name: string): string {
   return name.replace(/\.[^.]+$/, '')
 }
 
+function basename(path: string): string {
+  const parts = path.split(/[\\/]/)
+  return parts[parts.length - 1] || path
+}
+
 interface Pending {
   fileName: string
   rows: SalesRow[]
@@ -30,14 +35,15 @@ interface Pending {
 export default function SalesReport() {
   const qc = useQueryClient()
   const { activeSessionId, data, isLoading, open, reset } = useSalesRows()
-  const { create } = useSalesSessions()
+  const { create, sessions, isLoading: sessionsLoading } = useSalesSessions()
+  const noSessions = !sessionsLoading && sessions.length === 0
   const [local, setLocal] = useState<LocalStatus>({ status: 'idle' })
   const [pending, setPending] = useState<Pending | null>(null)
 
-  async function handleFile(file: File) {
+  async function handlePath(path: string) {
     setLocal({ status: 'parsing' })
     try {
-      const rows = await parseExcelFile(file)
+      const rows = await parseExcelByPath(path)
       if (rows.length === 0) {
         setLocal({
           status: 'error',
@@ -45,7 +51,7 @@ export default function SalesReport() {
         })
         return
       }
-      setPending({ fileName: file.name, rows })
+      setPending({ fileName: basename(path), rows })
       setLocal({ status: 'idle' })
     } catch (err) {
       setLocal({
@@ -61,7 +67,8 @@ export default function SalesReport() {
       { ten, file_name: pending.fileName, rows: pending.rows },
       {
         onSuccess: (session) => {
-          qc.setQueryData(sessionDetailKey(session.id), { ...session, rows: pending!.rows })
+          // Backend trả đầy đủ rows (SalesSessionDetail) — không cần vá thủ công.
+          qc.setQueryData(sessionDetailKey(session.id), session)
           open(session.id)
           setPending(null)
           notifications.show({
@@ -146,7 +153,7 @@ export default function SalesReport() {
 
       {local.status === 'idle' && (
         <>
-          <FileDropZone onFile={handleFile} />
+          <FileDropZone onPath={handlePath} large={noSessions} />
           <SessionHistory onOpen={open} />
         </>
       )}

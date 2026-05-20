@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Box, Group, Stack, Text, Button,
-  TextInput, Select, ActionIcon, ScrollArea,
+  Select, ScrollArea,
   Center, SegmentedControl, Switch,
 } from '@mantine/core'
-import { IconSearch, IconX, IconUser } from '@tabler/icons-react'
+import { IconUser, IconUsers, IconPackage, IconBox, IconCash } from '@tabler/icons-react'
 import type { BrandSummary, CEOSummary } from '../types'
 import type { CEO } from '@/master-data/CEO/types'
 import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
@@ -14,6 +14,36 @@ import { applyOnlyMain, calcTotalThung, makeBrandMatcher, mergeCEOsAcrossBrands 
 import MatrixTable from './MatrixTable'
 import CEODetailTable from './CEODetailTable'
 import CEOListItem from './CEOListItem'
+import SearchInput from './SearchInput'
+
+interface StatTileProps {
+  icon: React.ReactNode
+  label: string
+  value: React.ReactNode
+  accentColor?: string
+}
+
+function StatTile({ icon, label, value, accentColor }: StatTileProps) {
+  return (
+    <Group gap={8} wrap="nowrap" align="center">
+      <Box style={{
+        width: 28, height: 28, borderRadius: 6,
+        background: 'var(--mantine-color-gray-1)',
+        color: accentColor ?? 'var(--mantine-color-gray-6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        {icon}
+      </Box>
+      <Stack gap={0}>
+        <Text size="xs" c="dimmed" style={{ lineHeight: 1.2 }}>{label}</Text>
+        <Text size="sm" fw={700} c={accentColor ? undefined : 'dark'} style={{ lineHeight: 1.3, color: accentColor }}>
+          {value}
+        </Text>
+      </Stack>
+    </Group>
+  )
+}
 
 interface Props {
   brand: BrandSummary
@@ -52,6 +82,7 @@ export default function BrandPanel({
   const [productSearch, setProductSearch] = useState('')
   const [invoiceSearch, setInvoiceSearch] = useState('')
   const [onlyMain, setOnlyMain] = useState(true)
+  const [importStatus, setImportStatus] = useState<'imported' | 'not-imported' | null>(null)
 
   useEffect(() => {
     setSelectedCEO(brand.ceos.find((c) => matchesBrand(c.ceo))?.ceo ?? '')
@@ -60,6 +91,7 @@ export default function BrandPanel({
     setProductSearch('')
     setInvoiceSearch('')
     setOnlyMain(true)
+    setImportStatus(null)
   }, [brand.brand]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Gộp dữ liệu CEO trên mọi thương hiệu để thấy được giao dịch cross-brand.
@@ -123,8 +155,16 @@ export default function BrandPanel({
           }
           return true
         })
-        .map((c) => (onlyMain ? applyOnlyMain(c, brand.brand, sanPhamChinhSet) : c)),
-    [allCEOs, ceoFilter, monthFilter, search, qInvoice, onlyMain, brand.brand, sanPhamChinhSet],
+        .map((c) => (onlyMain ? applyOnlyMain(c, brand.brand, sanPhamChinhSet) : c))
+        .filter((c) => {
+          if (!importStatus) return true
+          const thung = calcTotalThung(c, brand.brand, quyCachMap, productBrandMap)
+          return importStatus === 'imported' ? thung > 0 : thung === 0
+        }),
+    [
+      allCEOs, ceoFilter, monthFilter, search, qInvoice, onlyMain, importStatus,
+      brand.brand, sanPhamChinhSet, quyCachMap, productBrandMap,
+    ],
   )
 
   const activeCEO = visibleCEOs.find((c) => c.ceo === selectedCEO) ?? visibleCEOs[0]
@@ -136,7 +176,7 @@ export default function BrandPanel({
     0,
   )
 
-  const isFiltered = !!ceoFilter || !!monthFilter || !!productSearch.trim() || !!invoiceSearch.trim() || !onlyMain
+  const isFiltered = !!ceoFilter || !!monthFilter || !!productSearch.trim() || !!invoiceSearch.trim() || !onlyMain || !!importStatus
 
   function clearFilters() {
     setCeoFilter(null)
@@ -144,6 +184,7 @@ export default function BrandPanel({
     setProductSearch('')
     setInvoiceSearch('')
     setOnlyMain(true)
+    setImportStatus(null)
   }
 
   const activeTotalThung = activeCEO ? calcTotalThung(activeCEO, brand.brand, quyCachMap, productBrandMap) : 0
@@ -152,22 +193,33 @@ export default function BrandPanel({
   return (
     <Stack h="100%" gap={0}>
       {/* Stats row */}
-      <Group px="lg" py="xs" gap="lg"
-        style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', flexShrink: 0 }}>
-        <Text size="sm" c="dimmed">
-          Số CEO: <Text span fw={600} c="dark">{visibleCEOs.length}{isFiltered ? `/${allCEOs.length}` : ''}</Text>
-        </Text>
-        <Text size="sm" c="dimmed">
-          Tổng sản phẩm: <Text span fw={600} c="dark">{fmtQty(totalQtyFiltered)}</Text>
-        </Text>
+      <Group px="lg" py="xs" gap="xl"
+        style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', flexShrink: 0, background: 'white' }}>
+        <StatTile
+          icon={<IconUsers size={16} />}
+          label="Số CEO"
+          value={`${visibleCEOs.length}${isFiltered ? `/${allCEOs.length}` : ''}`}
+          accentColor="var(--mantine-color-blue-7)"
+        />
+        <StatTile
+          icon={<IconPackage size={16} />}
+          label="Tổng sản phẩm"
+          value={fmtQty(totalQtyFiltered)}
+        />
         {totalThungFiltered > 0 && (
-          <Text size="sm" c="dimmed">
-            Tổng thùng: <Text span fw={600} c="dark">{fmt.format(round2(totalThungFiltered))}</Text>
-          </Text>
+          <StatTile
+            icon={<IconBox size={16} />}
+            label="Tổng thùng"
+            value={fmt.format(round2(totalThungFiltered))}
+            accentColor="var(--mantine-color-indigo-7)"
+          />
         )}
-        <Text size="sm" c="dimmed">
-          Tổng tiền: <Text span fw={600} c="green.7">{fmtAmount(totalAmountFiltered)}</Text>
-        </Text>
+        <StatTile
+          icon={<IconCash size={16} />}
+          label="Tổng tiền"
+          value={fmtAmount(totalAmountFiltered)}
+          accentColor="var(--mantine-color-green-7)"
+        />
       </Group>
 
       {/* Filter bar */}
@@ -186,6 +238,30 @@ export default function BrandPanel({
             )
           }
         />
+        <SearchInput
+          placeholder="Mã / tên sản phẩm"
+          value={productSearch}
+          onChange={setProductSearch}
+          minWidth={180}
+        />
+        <SearchInput
+          placeholder="Mã hóa đơn"
+          value={invoiceSearch}
+          onChange={setInvoiceSearch}
+          minWidth={150}
+        />
+        <Select
+          size="xs"
+          placeholder="Trạng thái nhập hàng"
+          value={importStatus}
+          onChange={(v) => setImportStatus(v as 'imported' | 'not-imported' | null)}
+          data={[
+            { value: 'imported', label: 'Có nhập hàng' },
+            { value: 'not-imported', label: 'Không nhập hàng' },
+          ]}
+          clearable
+          style={{ minWidth: 170 }}
+        />
         <Select
           placeholder="Tháng"
           data={monthOptions}
@@ -193,32 +269,6 @@ export default function BrandPanel({
           onChange={setMonthFilter}
           clearable size="xs"
           style={{ minWidth: 110 }}
-        />
-        <TextInput
-          placeholder="Mã / tên sản phẩm"
-          value={productSearch}
-          onChange={(e) => setProductSearch(e.target.value)}
-          size="xs"
-          leftSection={<IconSearch size={13} />}
-          rightSection={productSearch
-            ? <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setProductSearch('')}>
-                <IconX size={11} />
-              </ActionIcon>
-            : null}
-          style={{ minWidth: 180 }}
-        />
-        <TextInput
-          placeholder="Mã hóa đơn"
-          value={invoiceSearch}
-          onChange={(e) => setInvoiceSearch(e.target.value)}
-          size="xs"
-          leftSection={<IconSearch size={13} />}
-          rightSection={invoiceSearch
-            ? <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setInvoiceSearch('')}>
-                <IconX size={11} />
-              </ActionIcon>
-            : null}
-          style={{ minWidth: 150 }}
         />
         <Switch
           size="xs"

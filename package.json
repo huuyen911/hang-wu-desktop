@@ -1,7 +1,7 @@
 {
   "name": "hang-wu-desktop",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Hằng Wonder Union — desktop app (offline)",
   "author": {
     "name": "Nguyễn Hữu Yên",
@@ -17,13 +17,14 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
-    "@tauri-apps/plugin-dialog": "^2.7.1"
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.2.8",
     "@mantine/core": "^9.2.1",
     "@mantine/dates": "^9.2.1",
-    "@mantine/dropzone": "^9.2.1",
     "@mantine/hooks": "^9.2.1",
     "@mantine/notifications": "^9.2.1",
     "@tabler/icons-react": "^3.44.0",

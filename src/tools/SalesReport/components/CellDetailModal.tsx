@@ -1,7 +1,8 @@
 import { Modal, Group, Text, Box } from '@mantine/core'
 import type { CEOSummary, ProductRow } from '../types'
-import { fmt, fmtQty, fmtAmount, round2 } from '../format'
+import { fmt, fmtQty, fmtAmount, fmtAmountOrDash, round2 } from '../format'
 import { brandShort } from '@/domain/constants'
+import { thSticky } from '@/styles/table'
 import BrandTag from './BrandTag'
 
 export type ColProductEntry = {
@@ -19,15 +20,12 @@ export type ModalCellInfo = {
   brand: string
 }
 
-const thStyle: React.CSSProperties = {
-  padding: '7px 8px',
-  textAlign: 'left',
-  fontSize: 11,
-  fontWeight: 700,
-  background: 'var(--mantine-color-gray-1)',
-  borderBottom: '2px solid var(--mantine-color-gray-3)',
-  whiteSpace: 'nowrap',
-}
+const thStyle = thSticky
+
+const MAX_VISIBLE_ROWS = 15
+const ROW_HEIGHT = 28
+const HEADER_HEIGHT = 32
+const FOOTER_HEIGHT = 32
 
 // Modal chi tiết một ô trong MatrixTable — liệt kê từng dòng hóa đơn.
 export default function CellDetailModal({
@@ -76,7 +74,7 @@ export default function CellDetailModal({
     <Modal
       opened
       onClose={onClose}
-      size="90%"
+      size="70%"
       styles={{ body: { padding: '16px' }, header: { padding: '12px 16px' } }}
       title={
         <Group gap="xs" wrap="nowrap">
@@ -96,20 +94,20 @@ export default function CellDetailModal({
       {noData ? (
         <Text size="sm" c="dimmed">CEO này không có đơn hàng nào cho {colLabel} trong kỳ báo cáo.</Text>
       ) : (
-        <Box style={{ overflowX: 'auto' }}>
+        <Box style={{ overflow: 'auto', maxHeight: HEADER_HEIGHT + ROW_HEIGHT * MAX_VISIBLE_ROWS + FOOTER_HEIGHT }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 980 }}>
             <thead>
               <tr>
-                <th style={{ ...thStyle, width: 100 }}>Mã sản phẩm</th>
-                <th style={{ ...thStyle, width: 190 }}>Tên sản phẩm</th>
-                <th style={{ ...thStyle, width: 140 }}>Mã hóa đơn</th>
-                <th style={{ ...thStyle, width: 55, textAlign: 'center' }}>Đơn vị tính</th>
-                <th style={{ ...thStyle, width: 75, textAlign: 'right' }}>Số lượng</th>
-                <th style={{ ...thStyle, width: 65, textAlign: 'right' }}>Quy cách</th>
-                <th style={{ ...thStyle, width: 90, textAlign: 'right' }}>Số lượng thùng</th>
-                <th style={{ ...thStyle, width: 80, textAlign: 'center' }}>Thời gian</th>
-                <th style={{ ...thStyle, width: 110, textAlign: 'right' }}>Đơn giá</th>
-                <th style={{ ...thStyle, width: 120, textAlign: 'right' }}>Thành tiền</th>
+                <th scope="col" style={{ ...thStyle, width: 100 }}>Mã sản phẩm</th>
+                <th scope="col" style={{ ...thStyle, width: 190 }}>Tên sản phẩm</th>
+                <th scope="col" style={{ ...thStyle, width: 140 }}>Mã hóa đơn</th>
+                <th scope="col" style={{ ...thStyle, width: 55, textAlign: 'center' }}>Đơn vị tính</th>
+                <th scope="col" style={{ ...thStyle, width: 75, textAlign: 'right' }}>Số lượng</th>
+                <th scope="col" style={{ ...thStyle, width: 65, textAlign: 'right' }}>Quy cách</th>
+                <th scope="col" style={{ ...thStyle, width: 90, textAlign: 'right' }}>Số lượng thùng</th>
+                <th scope="col" style={{ ...thStyle, width: 80, textAlign: 'center' }}>Thời gian</th>
+                <th scope="col" style={{ ...thStyle, width: 110, textAlign: 'right' }}>Đơn giá</th>
+                <th scope="col" style={{ ...thStyle, width: 120, textAlign: 'right' }}>Thành tiền</th>
               </tr>
             </thead>
             <tbody>
@@ -149,7 +147,7 @@ export default function CellDetailModal({
                       {line.date || '—'}
                     </td>
                     <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--mantine-color-dimmed)' }}>
-                      {line.unitPrice !== 0 ? fmtAmount(line.unitPrice) : '—'}
+                      {fmtAmountOrDash(line.unitPrice)}
                     </td>
                     <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--mantine-color-green-7)', fontWeight: 600 }}>
                       {fmtAmount(line.amount)}
@@ -158,7 +156,7 @@ export default function CellDetailModal({
                 )
               })}
             </tbody>
-            <tfoot>
+            <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 1 }}>
               <tr style={{ background: 'var(--mantine-color-blue-1)', fontWeight: 700, borderTop: '2px solid var(--mantine-color-blue-3)' }}>
                 <td colSpan={3} style={{ padding: '6px 8px', fontSize: 11, color: 'var(--mantine-color-blue-8)' }}>
                   Tổng ({flatLines.length} dòng)

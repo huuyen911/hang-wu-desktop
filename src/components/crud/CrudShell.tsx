@@ -1,5 +1,17 @@
 import type { ReactNode } from 'react'
-import { Box, Group, Title, Button, TextInput, Alert, Center, Loader, Text } from '@mantine/core'
+import {
+  Box,
+  Group,
+  Title,
+  Button,
+  TextInput,
+  Alert,
+  Center,
+  Loader,
+  Text,
+  ActionIcon,
+} from '@mantine/core'
+import { IconPlus, IconSearch, IconX } from '@tabler/icons-react'
 
 interface Props {
   title: string
@@ -13,6 +25,9 @@ interface Props {
   isLoading: boolean
   isEmpty: boolean
   emptyText: string
+  /** Tổng số bản ghi (chưa lọc). Khi truyền cùng filteredCount sẽ hiển thị "X/Y". */
+  totalCount?: number
+  filteredCount?: number
   /** Bảng dữ liệu — chỉ render khi không loading và có dữ liệu. */
   table: ReactNode
   /** Modal tạo/sửa, xác nhận xóa... — luôn render (kể cả khi danh sách rỗng). */
@@ -35,23 +50,59 @@ export default function CrudShell({
   isLoading,
   isEmpty,
   emptyText,
+  totalCount,
+  filteredCount,
   table,
   children,
 }: Props) {
+  // Tách dấu "+" thừa nếu có để dùng IconPlus.
+  const cleanLabel = addLabel.replace(/^\s*\+\s*/, '')
+  const showCount = totalCount != null
+  const isFiltered = !!search.trim()
+
   return (
     <Box p="md" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Group justify="space-between" mb="md">
-        <Title order={4}>{title}</Title>
-        <Button onClick={onAdd}>{addLabel}</Button>
+      <style>{`
+        .hwu-crud-table tbody td { vertical-align: middle; }
+      `}</style>
+      <Group justify="space-between" mb="md" align="flex-end">
+        <Box>
+          <Title order={4} style={{ letterSpacing: '-0.2px' }}>{title}</Title>
+        </Box>
+        <Button leftSection={<IconPlus size={16} />} onClick={onAdd}>
+          {cleanLabel}
+        </Button>
       </Group>
 
-      <TextInput
-        placeholder={searchPlaceholder}
-        value={search}
-        onChange={(e) => onSearchChange(e.currentTarget.value)}
-        mb="md"
-        style={{ maxWidth: searchMaxWidth }}
-      />
+      <Group gap="sm" mb="md" wrap="nowrap" align="center">
+        <TextInput
+          placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
+          value={search}
+          onChange={(e) => onSearchChange(e.currentTarget.value)}
+          leftSection={<IconSearch size={14} />}
+          rightSection={
+            search ? (
+              <ActionIcon
+                size="sm"
+                variant="subtle"
+                color="gray"
+                onClick={() => onSearchChange('')}
+                aria-label="Xoá tìm kiếm"
+              >
+                <IconX size={14} />
+              </ActionIcon>
+            ) : null
+          }
+          style={{ flex: 1, maxWidth: searchMaxWidth }}
+        />
+        {showCount && (
+          <Text size="sm" c="dimmed">
+            <Text span fw={600} c="dark">{filteredCount ?? totalCount}</Text>
+            {isFiltered && filteredCount !== totalCount ? `/${totalCount}` : ''} bản ghi
+          </Text>
+        )}
+      </Group>
 
       {error != null && (
         <Alert color="red" mb="md">
@@ -59,7 +110,7 @@ export default function CrudShell({
         </Alert>
       )}
 
-      <Box style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+      <Box className="hwu-crud-table" style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {isLoading ? (
           <Center h={200}>
             <Loader />

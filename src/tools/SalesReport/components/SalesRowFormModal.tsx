@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Modal, Stack, Group, Button, Text, NumberInput,
   Select, SimpleGrid, TextInput,
@@ -100,17 +100,18 @@ export default function SalesRowFormModal({ opened, row, onClose, onSubmit }: Pr
     }))
   }
 
-  const ceoOptions = masterCEOs.map((c) => ({
-    value: c.ma_ceo,
-    label: `${c.ma_ceo} – ${c.ten_ceo}`,
-  }))
+  const ceoOptions = useMemo(
+    () => masterCEOs.map((c) => ({ value: c.ma_ceo, label: `${c.ma_ceo} – ${c.ten_ceo}` })),
+    [masterCEOs],
+  )
 
-  const productOptions = sanPhamList
-    .filter((sp) => !d.brand || sp.thuong_hieu === d.brand)
-    .map((sp) => ({
-      value: sp.ma_san_pham,
-      label: `${sp.ma_san_pham} – ${sp.ten_san_pham}`,
-    }))
+  const productOptions = useMemo(
+    () =>
+      sanPhamList
+        .filter((sp) => !d.brand || sp.thuong_hieu === d.brand)
+        .map((sp) => ({ value: sp.ma_san_pham, label: `${sp.ma_san_pham} – ${sp.ten_san_pham}` })),
+    [sanPhamList, d.brand],
+  )
 
   const qtyNum = typeof d.qty === 'number' ? d.qty : parseFloat(String(d.qty))
   const priceNum = typeof d.unitPrice === 'number' ? d.unitPrice : parseFloat(String(d.unitPrice))
@@ -216,20 +217,23 @@ export default function SalesRowFormModal({ opened, row, onClose, onSubmit }: Pr
             value={d.qty}
             onChange={(v) => set('qty', v)}
             error={touched && errQty ? 'Phải là số' : null}
-            thousandSeparator
+            thousandSeparator="."
+            decimalSeparator=","
           />
           <NumberInput
             label="Đơn giá"
             value={d.unitPrice}
             onChange={(v) => set('unitPrice', v)}
-            thousandSeparator
+            thousandSeparator="."
+            decimalSeparator=","
           />
           <NumberInput
             label="Thành tiền"
             description="Để trống = tự tính Số lượng × Đơn giá"
             value={d.amount}
             onChange={(v) => set('amount', v)}
-            thousandSeparator
+            thousandSeparator="."
+            decimalSeparator=","
             style={{ gridColumn: 'span 2' }}
           />
         </SimpleGrid>

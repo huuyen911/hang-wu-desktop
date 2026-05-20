@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Box, Group, Stack, Text, Button, ScrollArea, SegmentedControl } from '@mantine/core'
-import { IconCheck } from '@tabler/icons-react'
+import { Box, Group, Stack, Text, Button, ScrollArea, SegmentedControl, Tabs } from '@mantine/core'
+import { IconArrowLeft } from '@tabler/icons-react'
 import { aggregateRows } from '../aggregate'
 import { useSalesRows } from '../hooks/useSalesRows'
 import { useReportMasterData } from '../hooks/useReportMasterData'
@@ -40,7 +40,16 @@ export default function DataView({ sessionName, onReset }: Props) {
       <Group px="lg" py="sm" justify="space-between"
         style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'white', flexShrink: 0 }}>
         <Group gap="xs">
-          <IconCheck size={16} color="var(--mantine-color-green-6)" />
+          <Button
+            size="xs"
+            variant="subtle"
+            color="gray"
+            leftSection={<IconArrowLeft size={14} />}
+            onClick={onReset}
+            aria-label="Quay về danh sách phiên"
+          >
+            Danh sách phiên
+          </Button>
           <Text fw={600} size="sm">{sessionName}</Text>
         </Group>
         <Group gap="sm">
@@ -53,7 +62,6 @@ export default function DataView({ sessionName, onReset }: Props) {
               { label: 'Dữ liệu', value: 'data' },
             ]}
           />
-          <Button size="xs" variant="subtle" onClick={onReset}>Đổi file</Button>
         </Group>
       </Group>
 
@@ -66,39 +74,25 @@ export default function DataView({ sessionName, onReset }: Props) {
           </Stack>
         </Box>
       ) : (
-        <>
-          {/* Brand tabs */}
+        <Tabs
+          value={currentBrand}
+          onChange={(v) => v && setActiveBrand(v)}
+          variant="default"
+          keepMounted={false}
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+        >
           <ScrollArea
             type="scroll"
             scrollbarSize={4}
             style={{ flexShrink: 0, borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'white' }}
           >
-            <Group gap={0} px="sm" pt="xs" wrap="nowrap" style={{ marginBottom: -1 }}>
-              {data.brands.map((b) => {
-                const active = b.brand === currentBrand
-                return (
-                  <Box
-                    key={b.brand}
-                    component="button"
-                    onClick={() => setActiveBrand(b.brand)}
-                    style={{
-                      border: 'none',
-                      borderBottom: active ? '2px solid var(--mantine-color-blue-6)' : '2px solid transparent',
-                      background: 'none',
-                      cursor: 'pointer',
-                      padding: '8px 16px',
-                      whiteSpace: 'nowrap',
-                      color: active ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-dimmed)',
-                      fontWeight: active ? 600 : 400,
-                      fontSize: 14,
-                      transition: 'color 0.15s',
-                    }}
-                  >
-                    {b.brand}
-                  </Box>
-                )
-              })}
-            </Group>
+            <Tabs.List style={{ flexWrap: 'nowrap', paddingLeft: 8, paddingRight: 8 }}>
+              {data.brands.map((b) => (
+                <Tabs.Tab key={b.brand} value={b.brand} style={{ whiteSpace: 'nowrap' }}>
+                  {b.brand}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
           </ScrollArea>
 
           {/* Active brand content */}
@@ -121,7 +115,7 @@ export default function DataView({ sessionName, onReset }: Props) {
               ) : null,
             )}
           </Box>
-        </>
+        </Tabs>
       )}
     </Stack>
   )

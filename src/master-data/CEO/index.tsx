@@ -6,12 +6,14 @@ import {
   Badge,
   ActionIcon,
   Group,
+  Tooltip,
 } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import type { CEO, CEOFormValues, NhanVienChamSoc } from './types'
 import { useCrudResource } from '@/hooks/useCrudResource'
 import { RESOURCES } from '@/lib/queryKeys'
 import { NHAN_VIEN_OPTIONS, nhanVienColor } from '@/domain/constants'
+import { mantineTableProps } from '@/styles/table'
 import CrudShell from '@/components/crud/CrudShell'
 import FormModal from '@/components/crud/FormModal'
 import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
@@ -65,27 +67,27 @@ export default function CEOPage() {
   }
 
   const table = (
-    <Table stickyHeader striped highlightOnHover withTableBorder withColumnBorders>
+    <Table {...mantineTableProps}>
       <Table.Thead>
         <Table.Tr>
-          <Table.Th>Mã CEO</Table.Th>
-          <Table.Th>Tên CEO</Table.Th>
-          <Table.Th>CEO cấp trên</Table.Th>
-          <Table.Th>Nhân viên chăm sóc</Table.Th>
-          <Table.Th style={{ textAlign: 'center' }}>Thao tác</Table.Th>
+          <Table.Th scope="col">Mã CEO</Table.Th>
+          <Table.Th scope="col">Tên CEO</Table.Th>
+          <Table.Th scope="col">CEO cấp trên</Table.Th>
+          <Table.Th scope="col">Nhân viên chăm sóc</Table.Th>
+          <Table.Th scope="col" style={{ textAlign: 'center', width: 100 }}>Thao tác</Table.Th>
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
         {c.filtered.map((item) => (
           <Table.Tr key={item.id}>
             <Table.Td>
-              <Text size="sm" ff="monospace" fw={500}>{item.ma_ceo}</Text>
+              <Text size="xs" ff="monospace" fw={500}>{item.ma_ceo}</Text>
             </Table.Td>
             <Table.Td>
-              <Text size="sm">{item.ten_ceo}</Text>
+              <Text size="xs">{item.ten_ceo}</Text>
             </Table.Td>
             <Table.Td>
-              <Text size="sm" c={item.ceo_cap_tren_id ? undefined : 'dimmed'}>
+              <Text size="xs" c={item.ceo_cap_tren_id ? undefined : 'dimmed'}>
                 {getCapTrenName(item.ceo_cap_tren_id)}
               </Text>
             </Table.Td>
@@ -95,13 +97,17 @@ export default function CEOPage() {
               </Badge>
             </Table.Td>
             <Table.Td style={{ textAlign: 'center' }}>
-              <Group gap={6} justify="center">
-                <ActionIcon variant="light" color="blue" onClick={() => c.openEdit(item)} title="Sửa">
-                  <IconPencil size={15} />
-                </ActionIcon>
-                <ActionIcon variant="light" color="red" onClick={() => c.setDeleteTarget(item)} title="Xóa">
-                  <IconTrash size={15} />
-                </ActionIcon>
+              <Group gap={6} justify="center" wrap="nowrap">
+                <Tooltip label="Sửa" withArrow>
+                  <ActionIcon variant="light" color="blue" size="sm" onClick={() => c.openEdit(item)} aria-label={`Sửa CEO ${item.ma_ceo}`}>
+                    <IconPencil size={14} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Xóa" withArrow>
+                  <ActionIcon variant="subtle" color="red" size="sm" onClick={() => c.setDeleteTarget(item)} aria-label={`Xoá CEO ${item.ma_ceo}`}>
+                    <IconTrash size={14} />
+                  </ActionIcon>
+                </Tooltip>
               </Group>
             </Table.Td>
           </Table.Tr>
@@ -113,7 +119,7 @@ export default function CEOPage() {
   return (
     <CrudShell
       title="Danh sách CEO"
-      addLabel="+ Thêm CEO"
+      addLabel="Thêm CEO"
       onAdd={c.openCreate}
       search={c.search}
       onSearchChange={c.setSearch}
@@ -123,6 +129,8 @@ export default function CEOPage() {
       isLoading={c.isLoading}
       isEmpty={c.filtered.length === 0}
       emptyText={c.search ? 'Không tìm thấy CEO phù hợp' : 'Chưa có CEO nào'}
+      totalCount={c.items.length}
+      filteredCount={c.filtered.length}
       table={table}
     >
       <FormModal

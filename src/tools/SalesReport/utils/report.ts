@@ -1,21 +1,19 @@
 import type { BrandSummary, CEOSummary, MonthSummary, ProductRow } from '../types'
 import type { CEO } from '@/master-data/CEO/types'
-
-/**
- * Prefix mã CEO theo thương hiệu: Elvawell → "E", Weilaiya → "W".
- * Trả về null nếu thương hiệu không xác định (khi đó nhận mọi mã bắt đầu E/W).
- */
-export function brandPrefix(brand: string): 'E' | 'W' | null {
-  if (brand === 'Elvawell') return 'E'
-  if (brand === 'Weilaiya') return 'W'
-  return null
-}
+import { ALL_BRAND_PREFIXES, brandPrefix } from '@/domain/constants'
 
 /** Tạo hàm kiểm tra một mã CEO có thuộc thương hiệu đang xem hay không. */
 export function makeBrandMatcher(brand: string): (ceoCode: string) => boolean {
   const prefix = brandPrefix(brand)
-  return (ceoCode: string) =>
-    prefix ? ceoCode.toUpperCase().startsWith(prefix) : /^[EW]/i.test(ceoCode)
+  if (prefix) {
+    const upper = prefix.toUpperCase()
+    return (ceoCode: string) => ceoCode.toUpperCase().startsWith(upper)
+  }
+  const allUpper = ALL_BRAND_PREFIXES.map((p) => p.toUpperCase())
+  return (ceoCode: string) => {
+    const c = ceoCode.toUpperCase()
+    return allUpper.some((p) => c.startsWith(p))
+  }
 }
 
 /**

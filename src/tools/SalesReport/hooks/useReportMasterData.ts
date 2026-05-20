@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { RESOURCES } from '@/lib/queryKeys'
+import { THUONG_HIEU_VALUES, isProductMainForBrand } from '@/domain/constants'
 import type { SanPham } from '@/master-data/SanPham/types'
 import type { CEO } from '@/master-data/CEO/types'
 import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
@@ -38,8 +39,9 @@ export function useReportMasterData() {
   const sanPhamChinhSet = useMemo(() => {
     const set = new Set<string>()
     sanPhamList.forEach((sp) => {
-      if (sp.la_san_pham_chinh_elvawell) set.add(`${sp.ma_san_pham}|Elvawell`)
-      if (sp.la_san_pham_chinh_weilaiya) set.add(`${sp.ma_san_pham}|Weilaiya`)
+      THUONG_HIEU_VALUES.forEach((brand) => {
+        if (isProductMainForBrand(sp, brand)) set.add(`${sp.ma_san_pham}|${brand}`)
+      })
     })
     return set
   }, [sanPhamList])
