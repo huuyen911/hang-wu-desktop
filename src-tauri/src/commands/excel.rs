@@ -1,5 +1,4 @@
 use calamine::{Data, Reader, Xlsx, open_workbook};
-use serde::Deserialize;
 
 use crate::commands::sales_session::SalesRow;
 
@@ -202,51 +201,116 @@ pub fn parse_excel_file(path: String) -> Result<Vec<SalesRow>, String> {
     Ok(parse_sheet(&sheet))
 }
 
-// ─── Excel export ────────────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize)]
-pub struct ExportRow {
-    pub ceo: String,
-    pub ceo_name: String,
-    pub brand: String,
-    pub product_code: String,
-    pub product_name: String,
-    pub unit: String,
-    pub invoice: String,
-    pub month: String,
-    pub qty: f64,
-    pub unit_price: f64,
-    pub amount: f64,
+fn col_letter(col: usize) -> String {
+    let mut result = String::new();
+    let mut n = col;
+    loop {
+        result.insert(0, (b'A' + (n % 26) as u8) as char);
+        if n < 26 { break; }
+        n = n / 26 - 1;
+    }
+    result
 }
 
 #[tauri::command]
-pub fn export_excel_file(path: String, rows: Vec<ExportRow>) -> Result<(), String> {
+pub fn export_matrix_excel_file(
+    path: String,
+    headers: Vec<String>,
+    text_totals: Vec<String>,
+    num_text_cols: usize,
+    rows: Vec<Vec<serde_json::Value>>,
+) -> Result<(), String> {
     use rust_xlsxwriter::*;
 
+    let num_rows = rows.len();
     let mut workbook = Workbook::new();
     let sheet = workbook.add_worksheet();
 
-    let headers = [
-        "CEO", "Tên CEO", "Thương hiệu", "Mã SP", "Tên SP",
-        "ĐVT", "Hóa đơn", "Tháng", "Số lượng", "Đơn giá", "Thành tiền",
-    ];
+    let header_fmt = Format::new()
+        .set_background_color(Color::RGB(0x1C4587))
+        .set_font_color(Color::White)
+        .set_bold();
+
+    let totals_txt_fmt = Format::new()
+        .set_background_color(Color::RGB(0xC9DAF8))
+        .set_font_color(Color::RGB(0x1C4587))
+        .set_bold();
+
+    let totals_num_fmt = Format::new()
+        .set_background_color(Color::RGB(0xC9DAF8))
+        .set_font_color(Color::RGB(0x1C4587))
+        .set_bold();
+
+    let num_fmt = Format::new().set_font_color(Color::RGB(0xBBBBBB));
+    let num_fmt_blue = Format::new().set_font_color(Color::RGB(0x1155CC)).set_bold();
+    let alt_txt_fmt = Format::new().set_background_color(Color::RGB(0xF3F4F6));
+    let alt_num_fmt = Format::new().set_background_color(Color::RGB(0xF3F4F6)).set_font_color(Color::RGB(0xBBBBBB));
+    let alt_num_fmt_blue = Format::new()
+        .set_background_color(Color::RGB(0xF3F4F6))
+        .set_font_color(Color::RGB(0x1155CC))
+        .set_bold();
+
+    // Row 0: header
     for (i, h) in headers.iter().enumerate() {
-        sheet.write(0, i as u16, *h).map_err(|e| e.to_string())?;
+        sheet.write_with_format(0, i as u16, h.as_str(), &header_fmt).map_err(|e| e.to_string())?;
     }
 
+    // Row 1: totals — text labels + SUM formulas for numeric columns
+    for (i, v) in text_totals.iter().enumerate() {
+        sheet.write_with_format(1, i as u16, v.as_str(), &totals_txt_fmt).map_err(|e| e.to_string())?;
+    }
+    for c in num_text_cols..headers.len() {
+        let col = col_letter(c);
+        let formula = format!("=SUM({col}3:{col}{})", 2 + num_rows);
+        sheet.write_with_format(1, c as u16, Formula::new(&formula), &totals_num_fmt).map_err(|e| e.to_string())?;
+    }
+
+    // Row 2+: data rows
+    let total_col = headers.len().saturating_sub(1);
+    let has_product_cols = headers.len() > num_text_cols + 1;
     for (r, row) in rows.iter().enumerate() {
-        let r = (r + 1) as u32;
-        sheet.write(r, 0, &row.ceo).map_err(|e| e.to_string())?;
-        sheet.write(r, 1, &row.ceo_name).map_err(|e| e.to_string())?;
-        sheet.write(r, 2, &row.brand).map_err(|e| e.to_string())?;
-        sheet.write(r, 3, &row.product_code).map_err(|e| e.to_string())?;
-        sheet.write(r, 4, &row.product_name).map_err(|e| e.to_string())?;
-        sheet.write(r, 5, &row.unit).map_err(|e| e.to_string())?;
-        sheet.write(r, 6, &row.invoice).map_err(|e| e.to_string())?;
-        sheet.write(r, 7, &row.month).map_err(|e| e.to_string())?;
-        sheet.write(r, 8, row.qty).map_err(|e| e.to_string())?;
-        sheet.write(r, 9, row.unit_price).map_err(|e| e.to_string())?;
-        sheet.write(r, 10, row.amount).map_err(|e| e.to_string())?;
+        let row_idx = (r + 2) as u32;
+        let excel_row = row_idx + 1; // 1-based for formula references
+        let is_alt = r % 2 != 0;
+        for (c, val) in row.iter().enumerate() {
+            let is_num = c >= num_text_cols;
+            let is_total_col = is_num && c == total_col && has_product_cols;
+            if is_total_col {
+                // SUM of all product-group columns in this row
+                let from = col_letter(num_text_cols);
+                let to = col_letter(total_col - 1);
+                let formula = format!("=SUM({from}{excel_row}:{to}{excel_row})");
+                let positive = val.as_f64().map(|v| v > 0.0).unwrap_or(false);
+                let fmt = match (is_alt, positive) {
+                    (false, true)  => &num_fmt_blue,
+                    (false, false) => &num_fmt,
+                    (true,  true)  => &alt_num_fmt_blue,
+                    (true,  false) => &alt_num_fmt,
+                };
+                sheet.write_with_format(row_idx, c as u16, Formula::new(&formula), fmt).map_err(|e| e.to_string())?;
+            } else {
+                match val {
+                    serde_json::Value::Number(n) if is_num => {
+                        let v = (n.as_f64().unwrap_or(0.0) * 100.0).round() / 100.0;
+                        let fmt = match (is_alt, v > 0.0) {
+                            (false, true)  => &num_fmt_blue,
+                            (false, false) => &num_fmt,
+                            (true,  true)  => &alt_num_fmt_blue,
+                            (true,  false) => &alt_num_fmt,
+                        };
+                        sheet.write_with_format(row_idx, c as u16, v, fmt).map_err(|e| e.to_string())?;
+                    }
+                    serde_json::Value::String(s) => {
+                        if is_alt {
+                            sheet.write_with_format(row_idx, c as u16, s.as_str(), &alt_txt_fmt).map_err(|e| e.to_string())?;
+                        } else {
+                            sheet.write(row_idx, c as u16, s.as_str()).map_err(|e| e.to_string())?;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 
     workbook.save(&path).map_err(|e| e.to_string())

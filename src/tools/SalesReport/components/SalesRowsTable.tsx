@@ -185,7 +185,6 @@ export default function SalesRowsTable() {
                 <th scope="col" style={{ ...thStyle, width: 200 }}>Tên sản phẩm</th>
                 <th scope="col" style={{ ...thStyle, width: 60 }}>Đơn vị tính</th>
                 <th scope="col" style={{ ...thStyle, width: 130 }}>Mã hóa đơn</th>
-                <th scope="col" style={{ ...thStyle, width: 80 }}>Tháng</th>
                 <th scope="col" style={{ ...thStyle, width: 140 }}>Thời gian</th>
                 <th scope="col" style={{ ...thStyle, width: 90, textAlign: 'right' }}>Số lượng</th>
                 <th scope="col" style={{ ...thStyle, width: 110, textAlign: 'right' }}>Đơn giá</th>
@@ -214,7 +213,6 @@ export default function SalesRowsTable() {
                   <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11, color: 'var(--mantine-color-dark-4)' }}>
                     {r.invoice || '—'}
                   </td>
-                  <td style={tdStyle}>{r.month || '—'}</td>
                   <td style={{ ...tdStyle, color: 'var(--mantine-color-dimmed)', fontSize: 11 }}>{r.date || '—'}</td>
                   <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtQty(r.qty)}</td>
                   <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--mantine-color-dimmed)' }}>

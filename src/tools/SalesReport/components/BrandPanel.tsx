@@ -4,7 +4,11 @@ import {
   Select, ScrollArea,
   Center, SegmentedControl, Switch,
 } from '@mantine/core'
-import { IconUser, IconUsers, IconPackage, IconBox, IconCash } from '@tabler/icons-react'
+import { IconUser, IconUsers, IconPackage, IconBox, IconCash, IconFileExport } from '@tabler/icons-react'
+import { notifications } from '@mantine/notifications'
+import { invoke } from '@tauri-apps/api/core'
+import { save } from '@tauri-apps/plugin-dialog'
+import { buildMatrixExportData } from '../utils/matrixExport'
 import type { BrandSummary, CEOSummary } from '../types'
 import type { CEO } from '@/master-data/CEO/types'
 import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
@@ -71,6 +75,7 @@ export default function BrandPanel({
   productBrandMap,
 }: Props) {
   const [viewMode, setViewMode] = useState<'detail' | 'matrix'>('matrix')
+  const [exporting, setExporting] = useState(false)
 
   const matchesBrand = useMemo(() => makeBrandMatcher(brand.brand), [brand.brand])
 
@@ -172,7 +177,7 @@ export default function BrandPanel({
   const totalQtyFiltered = visibleCEOs.reduce((s, c) => s + c.totalQty, 0)
   const totalAmountFiltered = visibleCEOs.reduce((s, c) => s + c.totalAmount, 0)
   const totalThungFiltered = visibleCEOs.reduce(
-    (s, c) => s + calcTotalThung(c, brand.brand, quyCachMap, productBrandMap),
+    (s, c) => s + round2(calcTotalThung(c, brand.brand, quyCachMap, productBrandMap)),
     0,
   )
 
@@ -187,39 +192,108 @@ export default function BrandPanel({
     setImportStatus(null)
   }
 
+  async function handleExport() {
+    if (visibleCEOs.length === 0) return
+    setExporting(true)
+    try {
+      const date = new Date().toISOString().slice(0, 10)
+      const path = await save({
+        defaultPath: `Báo cáo hàng bán theo khách ${date}.xlsx`,
+        filters: [{ name: 'Excel', extensions: ['xlsx'] }],
+      })
+      if (!path) return
+      const { headers, textTotals, numTextCols, dataRows } = buildMatrixExportData(
+        visibleCEOs,
+        brand.brand,
+        quyCachMap,
+        nhomGroups,
+        productToGroupIdMap,
+        allNhomGroups,
+        productBrandMap,
+      )
+      await invoke('export_matrix_excel_file', {
+        path,
+        headers,
+        textTotals,
+        numTextCols,
+        rows: dataRows,
+      })
+      notifications.show({
+        color: 'green',
+        title: 'Đã xuất file Excel',
+        message: `${visibleCEOs.length} CEO → ${path}`,
+        autoClose: 6000,
+      })
+    } catch (err) {
+      notifications.show({
+        color: 'red',
+        title: 'Xuất Excel thất bại',
+        message: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const activeTotalThung = activeCEO ? calcTotalThung(activeCEO, brand.brand, quyCachMap, productBrandMap) : 0
   const activeInMasterData = activeCEO ? masterCEOCodeSet.has(activeCEO.ceo) : true
 
   return (
     <Stack h="100%" gap={0}>
       {/* Stats row */}
-      <Group px="lg" py="xs" gap="xl"
+      <Group px="lg" py="xs" gap="xl" justify="space-between"
         style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', flexShrink: 0, background: 'white' }}>
-        <StatTile
-          icon={<IconUsers size={16} />}
-          label="Số CEO"
-          value={`${visibleCEOs.length}${isFiltered ? `/${allCEOs.length}` : ''}`}
-          accentColor="var(--mantine-color-blue-7)"
-        />
-        <StatTile
-          icon={<IconPackage size={16} />}
-          label="Tổng sản phẩm"
-          value={fmtQty(totalQtyFiltered)}
-        />
-        {totalThungFiltered > 0 && (
+        <Group gap="xl">
           <StatTile
-            icon={<IconBox size={16} />}
-            label="Tổng thùng"
-            value={fmt.format(round2(totalThungFiltered))}
-            accentColor="var(--mantine-color-indigo-7)"
+            icon={<IconUsers size={16} />}
+            label="Số CEO"
+            value={`${visibleCEOs.length}${isFiltered ? `/${allCEOs.length}` : ''}`}
+            accentColor="var(--mantine-color-blue-7)"
           />
-        )}
-        <StatTile
-          icon={<IconCash size={16} />}
-          label="Tổng tiền"
-          value={fmtAmount(totalAmountFiltered)}
-          accentColor="var(--mantine-color-green-7)"
-        />
+          <StatTile
+            icon={<IconPackage size={16} />}
+            label="Tổng sản phẩm"
+            value={fmtQty(totalQtyFiltered)}
+          />
+          {totalThungFiltered > 0 && (
+            <StatTile
+              icon={<IconBox size={16} />}
+              label="Tổng thùng"
+              value={fmt.format(round2(totalThungFiltered))}
+              accentColor="var(--mantine-color-indigo-7)"
+            />
+          )}
+          <StatTile
+            icon={<IconCash size={16} />}
+            label="Tổng tiền"
+            value={fmtAmount(totalAmountFiltered)}
+            accentColor="var(--mantine-color-green-7)"
+          />
+        </Group>
+        <Group gap="xs" wrap="nowrap">
+          {viewMode === 'matrix' && (
+            <Button
+              size="xs"
+              variant="light"
+              color="teal"
+              leftSection={<IconFileExport size={14} />}
+              onClick={handleExport}
+              loading={exporting}
+              disabled={visibleCEOs.length === 0}
+            >
+              Xuất Excel
+            </Button>
+          )}
+          <SegmentedControl
+            size="xs"
+            value={viewMode}
+            onChange={(v) => setViewMode(v as 'detail' | 'matrix')}
+            data={[
+              { label: 'Bảng', value: 'matrix' },
+              { label: 'Chi tiết', value: 'detail' },
+            ]}
+          />
+        </Group>
       </Group>
 
       {/* Filter bar */}
@@ -279,17 +353,6 @@ export default function BrandPanel({
         {isFiltered && (
           <Button size="xs" variant="subtle" color="red" onClick={clearFilters}>Xoá bộ lọc</Button>
         )}
-        <div style={{ marginLeft: 'auto' }}>
-          <SegmentedControl
-            size="xs"
-            value={viewMode}
-            onChange={(v) => setViewMode(v as 'detail' | 'matrix')}
-            data={[
-              { label: 'Bảng', value: 'matrix' },
-              { label: 'Chi tiết', value: 'detail' },
-            ]}
-          />
-        </div>
       </Group>
 
       {/* Content area */}

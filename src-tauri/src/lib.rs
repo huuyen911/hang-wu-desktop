@@ -48,7 +48,7 @@ pub fn run() {
             commands::sales_session::delete_sales_session,
             // excel
             commands::excel::parse_excel_file,
-            commands::excel::export_excel_file,
+            commands::excel::export_matrix_excel_file,
             // backup
             commands::backup::build_backup,
             commands::backup::write_backup_file,

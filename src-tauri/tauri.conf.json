@@ -1,6 +1,6 @@
 {
   "productName": "Hang Wonder Union",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "identifier": "com.hangwu.desktop",
   "build": {
     "beforeDevCommand": "npm run dev:vite",
@@ -15,7 +15,8 @@
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
-        "minHeight": 640
+        "minHeight": 640,
+        "maximized": true
       }
     ],
     "security": {

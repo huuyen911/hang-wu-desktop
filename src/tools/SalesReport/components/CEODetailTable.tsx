@@ -47,7 +47,8 @@ export default function CEODetailTable({
         const monthTotalThung = m.products.reduce((s, p) => {
           const productBrand = productBrandMap.get(p.productCode) ?? brand
           const qc = quyCachMap.get(`${p.productCode}|${productBrand}`)
-          return s + (qc ? p.quantity / qc : 0)
+          if (!qc) return s
+          return s + (p.rawLines ?? []).reduce((s2, line) => s2 + round2(line.qty / qc), 0)
         }, 0)
         const roundedMonthThung = round2(monthTotalThung)
 
@@ -89,7 +90,7 @@ export default function CEODetailTable({
         return (
           <Box key={m.month}>
             <Group
-              gap="xs" px="sm" py={6} mb={4}
+              gap="xs" px="sm" py={6}
               style={{
                 background: 'var(--mantine-color-blue-0)',
                 borderRadius: '6px 6px 0 0',
@@ -99,7 +100,7 @@ export default function CEODetailTable({
             >
               <Badge variant="filled" color="blue" size="sm" radius="sm">{m.month}</Badge>
               <Text size="xs" c="dimmed">{m.products.length} sản phẩm</Text>
-              <Text size="xs" fw={600} c="dark">SL: {fmtQty(m.totalQty)}</Text>
+              <Text size="xs" fw={600} c="dark">Số lượng: {fmtQty(m.totalQty)}</Text>
               {roundedMonthThung > 0 && (
                 <Text size="xs" fw={600} c="dark">{fmt.format(roundedMonthThung)} thùng</Text>
               )}
@@ -128,7 +129,8 @@ export default function CEODetailTable({
                   const groupThung = groupProds.reduce((s, p) => {
                     const productBrand = productBrandMap.get(p.productCode) ?? brand
                     const qc = quyCachMap.get(`${p.productCode}|${productBrand}`)
-                    return s + (qc ? p.quantity / qc : 0)
+                    if (!qc) return s
+                    return s + (p.rawLines ?? []).reduce((s2, line) => s2 + round2(line.qty / qc), 0)
                   }, 0)
                   const roundedGroupThung = round2(groupThung)
                   const isUngrouped = nhom === null

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Group, Text, Badge, Center } from '@mantine/core'
 import type { CEOSummary } from '../types'
 import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
-import { fmt } from '../format'
+import { fmt, round2 } from '../format'
 import { brandShort } from '@/domain/constants'
 import CellDetailModal, { type ColProductEntry, type ModalCellInfo } from './CellDetailModal'
 
@@ -102,6 +102,7 @@ export default function MatrixTable({
           colThungMap.set(key, (colThungMap.get(key) ?? 0) + p.quantity / quyCach)
         })
       })
+      colThungMap.forEach((v, key) => colThungMap.set(key, round2(v)))
       const totalThung = [...colThungMap.values()].reduce((s, v) => s + v, 0)
       return { ceo, colThungMap, colProductsMap, totalThung, crossBrands: crossBrandSet }
     })
@@ -131,11 +132,6 @@ export default function MatrixTable({
       })),
     ]
 
-    // Tổng cột & tổng cuối luôn cộng từ giá trị thùng CHƯA làm tròn rồi mới
-    // round khi render (Math.round(total*100)/100). Các ô riêng lẻ cũng làm
-    // tròn lúc hiển thị → sum-of-visible có thể chênh tổng cột ≤ 0.01 thùng do
-    // cộng dồn sai số làm tròn; đây là hành vi chuẩn của bảng tính, ưu tiên
-    // chính xác hơn là "cộng đúng từng ô bằng tay".
     const colTotals = new Map<number | string, number>()
     let grandTotalThung = 0
     ceoData.forEach(({ colThungMap, totalThung }) => {
@@ -166,7 +162,7 @@ export default function MatrixTable({
   const tdRight = (bg: string): React.CSSProperties => ({ position: 'sticky', right: 0, zIndex: 2, background: bg })
 
   const thTotals: React.CSSProperties = {
-    position: 'sticky', top: totalsTop, zIndex: 3,
+    position: 'sticky', top: totalsTop - 1, zIndex: 3,
     background: BG_TOTAL, padding: '6px 8px', fontSize: 12, fontWeight: 700,
     borderBottom: '2px solid var(--mantine-color-blue-3)', whiteSpace: 'nowrap',
   }

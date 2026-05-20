@@ -41,8 +41,27 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Hằng Wonder Union ${{ github.ref_name }}'
+          releaseName: ${{ github.ref_name }}
           releaseDraft: false
           prerelease: false
           generateReleaseNotes: true
           updaterJsonPreferNsis: true
+
+      - name: Rename .exe release asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $newName = "hang-wu-$tag.exe"
+
+          $exeFile = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          $renamedFile = Join-Path $exeFile.DirectoryName $newName
+          Copy-Item $exeFile.FullName $renamedFile
+
+          $assetId = gh release view $tag --json assets --jq ".assets[] | select(.name == `"$($exeFile.Name)`") | .id"
+          if ($assetId) {
+            gh api --method DELETE "repos/${{ github.repository }}/releases/assets/$assetId"
+          }
+
+          gh release upload $tag $renamedFile
