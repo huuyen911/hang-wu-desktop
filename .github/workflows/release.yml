@@ -46,3 +46,4 @@ jobs:
           prerelease: false
           generateReleaseNotes: true
           updaterJsonPreferNsis: true
+          tauriScript: npm run build
