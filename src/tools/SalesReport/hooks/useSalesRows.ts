@@ -138,6 +138,9 @@ export function useSalesRows() {
       const key = sessionDetailKey(activeId)
       const prev = qc.getQueryData<SalesSession>(key)
       if (!prev) return
+      // Phiên đã chốt → no-op (chặn cả autosave debounce). Phòng hờ tầng UI:
+      // backend cũng guard, nhưng dừng sớm ở đây để không gửi PUT thừa.
+      if (prev.locked_at != null) return
       const nextRows = updater(prev.rows)
       qc.setQueryData<SalesSession>(key, {
         ...prev,
@@ -180,6 +183,9 @@ export function useSalesRows() {
     data,
     rows: session?.rows ?? null,
     fileName: session?.ten ?? null,
+    // Trạng thái chốt của phiên đang mở (null = chưa chốt / chưa có phiên).
+    lockedAt: session?.locked_at ?? null,
+    masterSnapshot: session?.master_snapshot ?? null,
     isLoading,
     addRow,
     updateRow,

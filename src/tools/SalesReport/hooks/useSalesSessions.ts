@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { invoke } from '@tauri-apps/api/core'
 import { api } from '@/lib/api'
 import { RESOURCES } from '@/lib/queryKeys'
 import type { SalesRow, SalesSession, SalesSessionMeta } from '../types'
@@ -38,6 +39,25 @@ export function useSalesSessions() {
     onSuccess: invalidateList,
   })
 
+  // Lock/unlock là command tùy biến (không khớp REST mapping của `api`) → gọi
+  // thẳng invoke như cách export Excel làm. Invalidate cả list (badge/cờ) lẫn
+  // detail phiên đó (nguồn snapshot cho báo cáo) để cập nhật ngay lập tức.
+  const lock = useMutation({
+    mutationFn: (id: number) => invoke<SalesSession>('lock_sales_session', { id }),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: SESSION_LIST_KEY })
+      qc.invalidateQueries({ queryKey: sessionDetailKey(id) })
+    },
+  })
+
+  const unlock = useMutation({
+    mutationFn: (id: number) => invoke<SalesSession>('unlock_sales_session', { id }),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: SESSION_LIST_KEY })
+      qc.invalidateQueries({ queryKey: sessionDetailKey(id) })
+    },
+  })
+
   return {
     sessions: list.data ?? [],
     isLoading: list.isLoading,
@@ -45,5 +65,7 @@ export function useSalesSessions() {
     create,
     rename,
     remove,
+    lock,
+    unlock,
   }
 }

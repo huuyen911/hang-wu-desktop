@@ -2,13 +2,13 @@ use rusqlite::{Connection, Result};
 use std::path::Path;
 
 pub fn open(db_path: &Path, migrations_dir: &Path) -> Result<Connection> {
-    let conn = Connection::open(db_path)?;
+    let mut conn = Connection::open(db_path)?;
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
-    run_migrations(&conn, migrations_dir)?;
+    run_migrations(&mut conn, migrations_dir)?;
     Ok(conn)
 }
 
-fn run_migrations(conn: &Connection, migrations_dir: &Path) -> Result<()> {
+fn run_migrations(conn: &mut Connection, migrations_dir: &Path) -> Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _migrations (
             name TEXT PRIMARY KEY,
@@ -37,8 +37,15 @@ fn run_migrations(conn: &Connection, migrations_dir: &Path) -> Result<()> {
             continue;
         }
         let sql = std::fs::read_to_string(entry.path()).expect("read migration");
-        conn.execute_batch(&sql)?;
-        conn.execute("INSERT INTO _migrations (name) VALUES (?1)", [&name])?;
+        // Mỗi migration chạy trong 1 transaction: toàn bộ câu lệnh trong file +
+        // dòng đánh dấu trong _migrations cùng commit/rollback. Nếu file có nhiều
+        // câu lệnh mà fail giữa chừng (vd 0005 có 2 ALTER) thì rollback sạch,
+        // lần mở app sau chạy lại từ đầu — không kẹt nửa vời gây "duplicate
+        // column" rồi panic vĩnh viễn lúc khởi động.
+        let tx = conn.transaction()?;
+        tx.execute_batch(&sql)?;
+        tx.execute("INSERT INTO _migrations (name) VALUES (?1)", [&name])?;
+        tx.commit()?;
     }
     Ok(())
 }

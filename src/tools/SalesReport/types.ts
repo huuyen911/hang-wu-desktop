@@ -1,3 +1,7 @@
+import type { SanPham } from '@/master-data/SanPham/types'
+import type { CEO } from '@/master-data/CEO/types'
+import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
+
 /**
  * Một dòng dữ liệu phẳng — tương ứng đúng 1 row trong file Excel import.
  * Đây là NGUỒN dữ liệu gốc cho màn báo cáo: mọi CRUD thao tác trên list các
@@ -22,6 +26,16 @@ export interface SalesRow {
   amount: number
 }
 
+/**
+ * Snapshot master data chụp lại lúc "chốt phiên". Khi phiên đã chốt, báo cáo
+ * được dựng từ snapshot này thay vì master live → số liệu cố định.
+ */
+export interface MasterSnapshot {
+  san_pham: SanPham[]
+  ceo: CEO[]
+  nhom_san_pham: NhomSanPham[]
+}
+
 /** Bản ghi nhẹ cho danh sách lịch sử phiên (không kèm dữ liệu dòng). */
 export interface SalesSessionMeta {
   id: number
@@ -30,11 +44,15 @@ export interface SalesSessionMeta {
   row_count: number
   created_at: string
   updated_at: string
+  /** NULL = chưa chốt; có giá trị = mốc thời gian chốt phiên. */
+  locked_at: string | null
 }
 
 /** Phiên đầy đủ — kèm toàn bộ dòng đã import. */
 export interface SalesSession extends SalesSessionMeta {
   rows: SalesRow[]
+  /** Snapshot master lúc chốt; null khi chưa chốt. */
+  master_snapshot: MasterSnapshot | null
 }
 
 export interface InvoiceRow {

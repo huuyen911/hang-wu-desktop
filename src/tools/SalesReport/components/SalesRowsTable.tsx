@@ -16,8 +16,10 @@ import { thSticky, tdBase, rowBg } from '../utils/tableStyles'
 const PAGE_SIZE = 50
 
 export default function SalesRowsTable() {
-  const { rows, addRow, updateRow, deleteRow } = useSalesRows()
+  const { rows, addRow, updateRow, deleteRow, lockedAt } = useSalesRows()
   const list = rows ?? []
+  // Phiên đã chốt → chế độ chỉ đọc: ẩn nút thêm/sửa/xóa dòng.
+  const isLocked = lockedAt != null
 
   const [ceoFilter, setCeoFilter] = useState<string | null>(null)
   const [brandFilter, setBrandFilter] = useState<string | null>(null)
@@ -98,13 +100,15 @@ export default function SalesRowsTable() {
       {/* Toolbar */}
       <Group px="lg" py="xs" gap="sm" wrap="wrap"
         style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-gray-0)', flexShrink: 0 }}>
-        <Button
-          size="xs"
-          leftSection={<IconPlus size={14} />}
-          onClick={() => setFormRow(null)}
-        >
-          Thêm dòng
-        </Button>
+        {!isLocked && (
+          <Button
+            size="xs"
+            leftSection={<IconPlus size={14} />}
+            onClick={() => setFormRow(null)}
+          >
+            Thêm dòng
+          </Button>
+        )}
 
         <Select
           placeholder="CEO"
@@ -163,9 +167,11 @@ export default function SalesRowsTable() {
         <Center style={{ flex: 1 }}>
           <Stack align="center" gap="xs">
             <Text c="dimmed" size="sm">Chưa có dòng nào.</Text>
-            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setFormRow(null)}>
-              Thêm dòng đầu tiên
-            </Button>
+            {!isLocked && (
+              <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setFormRow(null)}>
+                Thêm dòng đầu tiên
+              </Button>
+            )}
           </Stack>
         </Center>
       ) : filtered.length === 0 ? (
@@ -189,7 +195,9 @@ export default function SalesRowsTable() {
                 <th scope="col" style={{ ...thStyle, width: 90, textAlign: 'right' }}>Số lượng</th>
                 <th scope="col" style={{ ...thStyle, width: 110, textAlign: 'right' }}>Đơn giá</th>
                 <th scope="col" style={{ ...thStyle, width: 130, textAlign: 'right' }}>Thành tiền</th>
-                <th scope="col" style={{ ...thStyle, width: 80, textAlign: 'center' }}>Thao tác</th>
+                {!isLocked && (
+                  <th scope="col" style={{ ...thStyle, width: 80, textAlign: 'center' }}>Thao tác</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -221,20 +229,22 @@ export default function SalesRowsTable() {
                   <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--mantine-color-green-7)', fontWeight: 600 }}>
                     {fmtAmount(r.amount)}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
-                    <Group gap={4} justify="center" wrap="nowrap">
-                      <Tooltip label="Sửa" withArrow>
-                        <ActionIcon size="sm" variant="subtle" color="blue" onClick={() => setFormRow(r)} aria-label={`Sửa dòng ${r.productCode}`}>
-                          <IconPencil size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Xóa" withArrow>
-                        <ActionIcon size="sm" variant="subtle" color="red" onClick={() => setDelRow(r)} aria-label={`Xoá dòng ${r.productCode}`}>
-                          <IconTrash size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  </td>
+                  {!isLocked && (
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      <Group gap={4} justify="center" wrap="nowrap">
+                        <Tooltip label="Sửa" withArrow>
+                          <ActionIcon size="sm" variant="subtle" color="blue" onClick={() => setFormRow(r)} aria-label={`Sửa dòng ${r.productCode}`}>
+                            <IconPencil size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Xóa" withArrow>
+                          <ActionIcon size="sm" variant="subtle" color="red" onClick={() => setDelRow(r)} aria-label={`Xoá dòng ${r.productCode}`}>
+                            <IconTrash size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

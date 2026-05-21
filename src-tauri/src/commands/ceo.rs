@@ -56,9 +56,9 @@ fn validate(body: &CeoBody, id: Option<i64>) -> Option<String> {
     None
 }
 
-#[tauri::command]
-pub fn list_ceo(state: State<DbState>) -> Result<Vec<Ceo>, String> {
-    let db = state.0.lock().map_err(|e| e.to_string())?;
+/// Lấy toàn bộ CEO từ một connection đang giữ sẵn. Tách khỏi command `list_ceo`
+/// để tính năng "Chốt phiên" tái dùng được khi đã giữ mutex.
+pub fn fetch_all(db: &rusqlite::Connection) -> Result<Vec<Ceo>, String> {
     let mut stmt = db
         .prepare(&format!("{} ORDER BY ma_ceo", SELECT))
         .map_err(|e| e.to_string())?;
@@ -66,6 +66,12 @@ pub fn list_ceo(state: State<DbState>) -> Result<Vec<Ceo>, String> {
         .query_map([], row_to_ceo)
         .map_err(|e| e.to_string())?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_ceo(state: State<DbState>) -> Result<Vec<Ceo>, String> {
+    let db = state.0.lock().map_err(|e| e.to_string())?;
+    fetch_all(&db)
 }
 
 #[tauri::command]

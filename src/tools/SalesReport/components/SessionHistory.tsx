@@ -13,7 +13,7 @@ import {
   Table,
   Badge,
 } from '@mantine/core'
-import { IconHistory, IconPencil, IconTrash, IconFolderOpen } from '@tabler/icons-react'
+import { IconHistory, IconPencil, IconTrash, IconFolderOpen, IconLock } from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import { notifications } from '@mantine/notifications'
 import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
@@ -118,9 +118,21 @@ export default function SessionHistory({ onOpen }: Props) {
                   {i + 1}
                 </Table.Td>
                 <Table.Td>
-                  <Text fw={600} size="xs">
-                    {s.ten}
-                  </Text>
+                  <Group gap={6} wrap="nowrap">
+                    <Text fw={600} size="xs">
+                      {s.ten}
+                    </Text>
+                    {s.locked_at != null && (
+                      <Badge
+                        color="orange"
+                        variant="light"
+                        size="xs"
+                        leftSection={<IconLock size={10} />}
+                      >
+                        Đã chốt
+                      </Badge>
+                    )}
+                  </Group>
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs" c="dimmed">
@@ -153,13 +165,27 @@ export default function SessionHistory({ onOpen }: Props) {
                         <IconFolderOpen size={14} />
                       </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Đổi tên">
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => startRename(s)} aria-label={`Đổi tên phiên ${s.ten}`}>
+                    <Tooltip label={s.locked_at != null ? 'Phiên đã chốt — hủy chốt để thao tác' : 'Đổi tên'}>
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        onClick={() => startRename(s)}
+                        disabled={s.locked_at != null}
+                        aria-label={`Đổi tên phiên ${s.ten}`}
+                      >
                         <IconPencil size={14} />
                       </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Xóa">
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => setDeleteTarget(s)} aria-label={`Xoá phiên ${s.ten}`}>
+                    <Tooltip label={s.locked_at != null ? 'Phiên đã chốt — hủy chốt để thao tác' : 'Xóa'}>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        size="sm"
+                        onClick={() => setDeleteTarget(s)}
+                        disabled={s.locked_at != null}
+                        aria-label={`Xoá phiên ${s.ten}`}
+                      >
                         <IconTrash size={14} />
                       </ActionIcon>
                     </Tooltip>

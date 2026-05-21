@@ -83,12 +83,19 @@ fn get_by_id(db: &rusqlite::Connection, id: i64) -> Result<NhomSanPham, String> 
     stmt.query_row([], row_to_nhom).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn list_nhom_san_pham(state: State<DbState>) -> Result<Vec<NhomSanPham>, String> {
-    let db = state.0.lock().map_err(|e| e.to_string())?;
+/// Lấy toàn bộ nhóm sản phẩm (kèm san_pham_ids) từ một connection đang giữ sẵn.
+/// Tách khỏi command `list_nhom_san_pham` để tính năng "Chốt phiên" tái dùng
+/// được khi đã giữ mutex.
+pub fn fetch_all(db: &rusqlite::Connection) -> Result<Vec<NhomSanPham>, String> {
     let mut stmt = db.prepare(LIST_SQL).map_err(|e| e.to_string())?;
     let rows = stmt.query_map([], row_to_nhom).map_err(|e| e.to_string())?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_nhom_san_pham(state: State<DbState>) -> Result<Vec<NhomSanPham>, String> {
+    let db = state.0.lock().map_err(|e| e.to_string())?;
+    fetch_all(&db)
 }
 
 #[tauri::command]

@@ -13,9 +13,21 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            let data_dir = app.path().app_data_dir().expect("no app data dir");
-            std::fs::create_dir_all(&data_dir).ok();
-            let db_path = data_dir.join("hang-wu.db");
+            // Khi chạy `tauri dev` (build debug) thì dùng DB riêng đặt ngay
+            // trong folder source, không đụng tới DB của app thật.
+            // Khi build release (app thật) thì dùng app_data_dir như bình thường.
+            let db_path = if cfg!(debug_assertions) {
+                // CARGO_MANIFEST_DIR là folder src-tauri, lùi 1 cấp ra root repo.
+                let dev_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("..")
+                    .join("dev-data");
+                std::fs::create_dir_all(&dev_dir).ok();
+                dev_dir.join("hang-wu.dev.db")
+            } else {
+                let data_dir = app.path().app_data_dir().expect("no app data dir");
+                std::fs::create_dir_all(&data_dir).ok();
+                data_dir.join("hang-wu.db")
+            };
 
             let resource_dir = app.path().resource_dir().expect("no resource dir");
             let migrations_dir = resource_dir.join("migrations");
@@ -46,6 +58,8 @@ pub fn run() {
             commands::sales_session::create_sales_session,
             commands::sales_session::update_sales_session,
             commands::sales_session::delete_sales_session,
+            commands::sales_session::lock_sales_session,
+            commands::sales_session::unlock_sales_session,
             // excel
             commands::excel::parse_excel_file,
             commands::excel::export_matrix_excel_file,

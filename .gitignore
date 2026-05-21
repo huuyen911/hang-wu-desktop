@@ -6,4 +6,5 @@ release
 .DS_Store
 .claude
 src-tauri/target
+dev-data
 hang-wu.key*
