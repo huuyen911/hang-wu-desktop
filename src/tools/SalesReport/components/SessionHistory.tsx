@@ -1,84 +1,98 @@
-import { useState } from 'react'
+import DeleteConfirmModal from "@/components/crud/DeleteConfirmModal";
+import { mantineTableProps } from "@/styles/table";
 import {
-  Stack,
-  Group,
-  Text,
-  Button,
   ActionIcon,
+  Badge,
+  Button,
   Center,
+  Group,
   Loader,
   Modal,
+  Stack,
+  Table,
+  Text,
   TextInput,
   Tooltip,
-  Table,
-  Badge,
-} from '@mantine/core'
-import { IconHistory, IconPencil, IconTrash, IconFolderOpen, IconLock } from '@tabler/icons-react'
-import dayjs from 'dayjs'
-import { notifications } from '@mantine/notifications'
-import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
-import { useSalesSessions } from '../hooks/useSalesSessions'
-import type { SalesSessionMeta } from '../types'
-import { mantineTableProps } from '@/styles/table'
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import {
+  IconFolderOpen,
+  IconHistory,
+  IconLock,
+  IconPencil,
+  IconTrash,
+} from "@tabler/icons-react";
+import dayjs from "dayjs";
+import { useState } from "react";
+import { useSalesSessions } from "../hooks/useSalesSessions";
+import type { SalesSessionMeta } from "../types";
 
 interface Props {
-  onOpen: (id: number) => void
+  onOpen: (id: number) => void;
 }
 
 function fmtTime(s: string): string {
-  const d = dayjs(s)
-  return d.isValid() ? d.format('DD/MM/YYYY HH:mm') : s
+  const d = dayjs(s);
+  return d.isValid() ? d.format("DD/MM/YYYY HH:mm") : s;
 }
 
 export default function SessionHistory({ onOpen }: Props) {
-  const { sessions, isLoading, rename, remove } = useSalesSessions()
-  const [renameTarget, setRenameTarget] = useState<SalesSessionMeta | null>(null)
-  const [renameValue, setRenameValue] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<SalesSessionMeta | null>(null)
+  const { sessions, isLoading, rename, remove } = useSalesSessions();
+  const [renameTarget, setRenameTarget] = useState<SalesSessionMeta | null>(
+    null,
+  );
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<SalesSessionMeta | null>(
+    null,
+  );
 
   function startRename(s: SalesSessionMeta) {
-    setRenameTarget(s)
-    setRenameValue(s.ten)
+    setRenameTarget(s);
+    setRenameValue(s.ten);
   }
 
   function submitRename() {
-    const ten = renameValue.trim()
-    if (!renameTarget || !ten) return
+    const ten = renameValue.trim();
+    if (!renameTarget || !ten) return;
     rename.mutate(
       { id: renameTarget.id, ten },
       {
         onSuccess: () => {
-          notifications.show({ title: 'Đã đổi tên phiên', message: ten, color: 'green' })
-          setRenameTarget(null)
+          notifications.show({
+            title: "Đã đổi tên phiên",
+            message: ten,
+            color: "green",
+          });
+          setRenameTarget(null);
         },
         onError: (e) =>
           notifications.show({
-            title: 'Lỗi',
-            message: e instanceof Error ? e.message : 'Không đổi tên được',
-            color: 'red',
+            title: "Lỗi",
+            message: e instanceof Error ? e.message : "Không đổi tên được",
+            color: "red",
           }),
       },
-    )
+    );
   }
 
   function confirmDelete() {
-    if (!deleteTarget) return
+    if (!deleteTarget) return;
     remove.mutate(deleteTarget.id, {
       onSuccess: () => {
         notifications.show({
-          title: 'Đã xóa phiên',
+          title: "Đã xóa phiên",
           message: deleteTarget.ten,
-          color: 'orange',
-        })
-        setDeleteTarget(null)
+          color: "orange",
+        });
+        setDeleteTarget(null);
       },
       onError: (e) =>
         notifications.show({
-          title: 'Lỗi',
-          message: e instanceof Error ? e.message : 'Không xóa được',
-          color: 'red',
+          title: "Lỗi",
+          message: e instanceof Error ? e.message : "Không xóa được",
+          color: "red",
         }),
-    })
+    });
   }
 
   return (
@@ -102,19 +116,34 @@ export default function SessionHistory({ onOpen }: Props) {
         <Table {...mantineTableProps}>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th scope="col" style={{ width: 36, textAlign: 'center' }}>#</Table.Th>
+              <Table.Th scope="col" style={{ width: 36, textAlign: "center" }}>
+                #
+              </Table.Th>
               <Table.Th scope="col">Tên phiên</Table.Th>
               <Table.Th scope="col">File</Table.Th>
-              <Table.Th scope="col" style={{ width: 80, textAlign: 'center' }}>Số dòng</Table.Th>
-              <Table.Th scope="col" style={{ width: 140 }}>Ngày import</Table.Th>
-              <Table.Th scope="col" style={{ width: 150 }}>Cập nhật gần nhất</Table.Th>
-              <Table.Th scope="col" style={{ width: 100, textAlign: 'center' }}>Thao tác</Table.Th>
+              <Table.Th scope="col" style={{ width: 80, textAlign: "center" }}>
+                Số dòng
+              </Table.Th>
+              <Table.Th scope="col" style={{ width: 140 }}>
+                Ngày import
+              </Table.Th>
+              <Table.Th scope="col" style={{ width: 150 }}>
+                Cập nhật gần nhất
+              </Table.Th>
+              <Table.Th scope="col" style={{ width: 100, textAlign: "center" }}>
+                Thao tác
+              </Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {sessions.map((s, i) => (
               <Table.Tr key={s.id}>
-                <Table.Td style={{ textAlign: 'center', color: 'var(--mantine-color-dimmed)' }}>
+                <Table.Td
+                  style={{
+                    textAlign: "center",
+                    color: "var(--mantine-color-dimmed)",
+                  }}
+                >
                   {i + 1}
                 </Table.Td>
                 <Table.Td>
@@ -139,7 +168,7 @@ export default function SessionHistory({ onOpen }: Props) {
                     {s.file_name}
                   </Text>
                 </Table.Td>
-                <Table.Td style={{ textAlign: 'center' }}>
+                <Table.Td style={{ textAlign: "center" }}>
                   <Badge variant="light" color="blue" size="sm">
                     {s.row_count}
                   </Badge>
@@ -155,17 +184,31 @@ export default function SessionHistory({ onOpen }: Props) {
                       {fmtTime(s.updated_at)}
                     </Text>
                   ) : (
-                    <Text size="xs" c="dimmed">—</Text>
+                    <Text size="xs" c="dimmed">
+                      —
+                    </Text>
                   )}
                 </Table.Td>
                 <Table.Td>
                   <Group gap={4} justify="center" wrap="nowrap">
                     <Tooltip label="Mở phiên">
-                      <ActionIcon variant="light" color="blue" size="sm" onClick={() => onOpen(s.id)} aria-label={`Mở phiên ${s.ten}`}>
+                      <ActionIcon
+                        variant="light"
+                        color="blue"
+                        size="sm"
+                        onClick={() => onOpen(s.id)}
+                        aria-label={`Mở phiên ${s.ten}`}
+                      >
                         <IconFolderOpen size={14} />
                       </ActionIcon>
                     </Tooltip>
-                    <Tooltip label={s.locked_at != null ? 'Phiên đã chốt — hủy chốt để thao tác' : 'Đổi tên'}>
+                    <Tooltip
+                      label={
+                        s.locked_at != null
+                          ? "Phiên đã chốt — hủy chốt để thao tác"
+                          : "Đổi tên"
+                      }
+                    >
                       <ActionIcon
                         variant="subtle"
                         color="gray"
@@ -177,7 +220,13 @@ export default function SessionHistory({ onOpen }: Props) {
                         <IconPencil size={14} />
                       </ActionIcon>
                     </Tooltip>
-                    <Tooltip label={s.locked_at != null ? 'Phiên đã chốt — hủy chốt để thao tác' : 'Xóa'}>
+                    <Tooltip
+                      label={
+                        s.locked_at != null
+                          ? "Phiên đã chốt — hủy chốt để thao tác"
+                          : "Xóa"
+                      }
+                    >
                       <ActionIcon
                         variant="subtle"
                         color="red"
@@ -208,7 +257,7 @@ export default function SessionHistory({ onOpen }: Props) {
             label="Tên phiên"
             value={renameValue}
             onChange={(e) => setRenameValue(e.currentTarget.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submitRename()}
+            onKeyDown={(e) => e.key === "Enter" && submitRename()}
             data-autofocus
           />
           <Group justify="flex-end">
@@ -235,5 +284,5 @@ export default function SessionHistory({ onOpen }: Props) {
         isDeleting={remove.isPending}
       />
     </Stack>
-  )
+  );
 }

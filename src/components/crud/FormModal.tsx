@@ -1,14 +1,14 @@
-import type { ReactNode } from 'react'
-import { Modal, Stack, Group, Button, Text } from '@mantine/core'
+import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import type { ReactNode } from "react";
 
 interface Props {
-  opened: boolean
-  isEdit: boolean
-  entityLabel: string
-  onClose: () => void
-  onSubmit: () => void
-  isSaving: boolean
-  children: ReactNode
+  opened: boolean;
+  isEdit: boolean;
+  entityLabel: string;
+  onClose: () => void;
+  onSubmit: () => void;
+  isSaving: boolean;
+  children: ReactNode;
 }
 
 /** Modal tạo/sửa dùng chung — phần trường nhập liệu do từng trang truyền vào. */
@@ -25,7 +25,11 @@ export default function FormModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={<Text fw={600}>{isEdit ? `Chỉnh sửa ${entityLabel}` : `Thêm ${entityLabel} mới`}</Text>}
+      title={
+        <Text fw={600}>
+          {isEdit ? `Chỉnh sửa ${entityLabel}` : `Thêm ${entityLabel} mới`}
+        </Text>
+      }
       size="md"
       closeOnClickOutside={!isSaving}
     >
@@ -36,10 +40,10 @@ export default function FormModal({
             Hủy
           </Button>
           <Button onClick={onSubmit} loading={isSaving}>
-            {isEdit ? 'Lưu thay đổi' : 'Thêm mới'}
+            {isEdit ? "Lưu thay đổi" : "Thêm mới"}
           </Button>
         </Group>
       </Stack>
     </Modal>
-  )
+  );
 }

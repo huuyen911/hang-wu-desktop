@@ -1,20 +1,23 @@
 /** Định dạng số / tiền tệ dùng chung trong báo cáo bán hàng. */
 
-const nf = new Intl.NumberFormat('vi-VN')
-const nfDecimal = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 5 })
-const cf = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+const nf = new Intl.NumberFormat("vi-VN");
+const nfDecimal = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 5 });
+const cf = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+});
 
-export const fmt = nf
-export const fmtDecimal = (n: number) => nfDecimal.format(n)
-export const fmtQty = (n: number) => nf.format(n)
-export const fmtAmount = (n: number) => cf.format(n)
+export const fmt = nf;
+export const fmtDecimal = (n: number) => nfDecimal.format(n);
+export const fmtQty = (n: number) => nf.format(n);
+export const fmtAmount = (n: number) => cf.format(n);
 
 /**
  * Hiển thị tiền hoặc "—" nếu giá trị là 0 / không hữu hạn. Dùng cho ô đơn giá:
  * 0 nghĩa là "không nhập", `NaN`/`Infinity` thì bảo vệ khỏi parser lỗi.
  */
 export const fmtAmountOrDash = (n: number): string =>
-  Number.isFinite(n) && n !== 0 ? cf.format(n) : '—'
+  Number.isFinite(n) && n !== 0 ? cf.format(n) : "—";
 
 /** Làm tròn xuống số nguyên (dùng cho số lượng thùng). */
-export const round2 = (n: number) => Math.floor(n)
+export const round2 = (n: number) => Math.floor(n);

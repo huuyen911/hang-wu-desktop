@@ -1,25 +1,34 @@
-import { SimpleGrid, Card, Text, Title, Group, Stack, Box, ThemeIcon } from '@mantine/core'
-import { IconArrowRight, IconDatabase } from '@tabler/icons-react'
-import { Link } from 'react-router-dom'
-import type { ReactNode } from 'react'
-import { tools } from '@/tools/registry'
-import { masterDataPages } from '@/master-data/registry'
+import { masterDataPages } from "@/master-data/registry";
+import { tools } from "@/tools/registry";
+import {
+  Box,
+  Card,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+} from "@mantine/core";
+import { IconArrowRight, IconDatabase } from "@tabler/icons-react";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 
-type CardColor = 'blue' | 'teal' | 'orange'
+type CardColor = "blue" | "teal" | "orange";
 
 interface HomeCardItem {
-  id: string
-  to: string
-  name: string
-  description?: string
-  icon: ReactNode
+  id: string;
+  to: string;
+  name: string;
+  description?: string;
+  icon: ReactNode;
 }
 
 const masterDataDescriptions: Record<string, string> = {
-  'san-pham': 'Quản lý danh mục sản phẩm',
-  'nhom-san-pham': 'Quản lý nhóm sản phẩm',
-  ceo: 'Quản lý danh sách CEO',
-}
+  "san-pham": "Quản lý danh mục sản phẩm",
+  "nhom-san-pham": "Quản lý nhóm sản phẩm",
+  ceo: "Quản lý danh sách CEO",
+};
 
 function HomeCard({ item, color }: { item: HomeCardItem; color: CardColor }) {
   return (
@@ -31,7 +40,7 @@ function HomeCard({ item, color }: { item: HomeCardItem; color: CardColor }) {
       withBorder
       className="hwu-tool-card"
       data-color={color}
-      style={{ textDecoration: 'none' }}
+      style={{ textDecoration: "none" }}
     >
       <Group align="flex-start" gap="md" wrap="nowrap">
         <ThemeIcon
@@ -59,7 +68,7 @@ function HomeCard({ item, color }: { item: HomeCardItem; color: CardColor }) {
         </Box>
       </Group>
     </Card>
-  )
+  );
 }
 
 function HomeSection({
@@ -67,13 +76,19 @@ function HomeSection({
   items,
   color,
 }: {
-  label: string
-  items: HomeCardItem[]
-  color: CardColor
+  label: string;
+  items: HomeCardItem[];
+  color: CardColor;
 }) {
   return (
     <div>
-      <Text size="xs" fw={700} c="dimmed" mb="sm" style={{ textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+      <Text
+        size="xs"
+        fw={700}
+        c="dimmed"
+        mb="sm"
+        style={{ textTransform: "uppercase", letterSpacing: "0.8px" }}
+      >
         {label}
       </Text>
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
@@ -82,7 +97,7 @@ function HomeSection({
         ))}
       </SimpleGrid>
     </div>
-  )
+  );
 }
 
 export default function Home() {
@@ -92,7 +107,7 @@ export default function Home() {
     name: tool.name,
     description: tool.description,
     icon: tool.icon,
-  }))
+  }));
 
   const masterDataItems: HomeCardItem[] = masterDataPages.map((page) => ({
     id: page.id,
@@ -100,17 +115,17 @@ export default function Home() {
     name: page.name,
     description: masterDataDescriptions[page.id],
     icon: page.icon,
-  }))
+  }));
 
   const systemItems: HomeCardItem[] = [
     {
-      id: 'backup',
-      to: '/system/backup',
-      name: 'Sao lưu & Phục hồi',
-      description: 'Sao lưu và phục hồi dữ liệu',
+      id: "backup",
+      to: "/system/backup",
+      name: "Sao lưu & Phục hồi",
+      description: "Sao lưu và phục hồi dữ liệu",
       icon: <IconDatabase size={20} />,
     },
-  ]
+  ];
 
   return (
     <Stack p="xl" gap="xl" maw={1200}>
@@ -142,7 +157,9 @@ export default function Home() {
       `}</style>
 
       <div>
-        <Title order={2} style={{ letterSpacing: '-0.4px' }}>Chào mừng</Title>
+        <Title order={2} style={{ letterSpacing: "-0.4px" }}>
+          Chào mừng
+        </Title>
         <Text c="dimmed" mt={6} size="sm">
           Chọn một mục từ danh sách bên trái hoặc bên dưới.
         </Text>
@@ -152,5 +169,5 @@ export default function Home() {
       <HomeSection label="Dữ liệu" items={masterDataItems} color="teal" />
       <HomeSection label="Hệ thống" items={systemItems} color="orange" />
     </Stack>
-  )
+  );
 }

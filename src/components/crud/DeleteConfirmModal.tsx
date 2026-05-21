@@ -1,14 +1,14 @@
-import { Modal, Text, Group, Button } from '@mantine/core'
+import { Button, Group, Modal, Text } from "@mantine/core";
 
 interface Props {
-  opened: boolean
-  entityLabel: string
-  name?: string
+  opened: boolean;
+  entityLabel: string;
+  name?: string;
   /** Mã/định danh phụ hiển thị trong ngoặc, nếu có. */
-  code?: string
-  onClose: () => void
-  onConfirm: () => void
-  isDeleting: boolean
+  code?: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  isDeleting: boolean;
 }
 
 /** Modal xác nhận xóa dùng chung cho mọi trang master-data. */
@@ -30,11 +30,11 @@ export default function DeleteConfirmModal({
       closeOnClickOutside={!isDeleting}
     >
       <Text size="sm" mb="md">
-        Bạn có chắc muốn xóa {entityLabel}{' '}
+        Bạn có chắc muốn xóa {entityLabel}{" "}
         <Text component="span" fw={600}>
           {name}
         </Text>
-        {code ? ` (${code})` : ''}?
+        {code ? ` (${code})` : ""}?
       </Text>
       <Group justify="flex-end">
         <Button variant="default" onClick={onClose} disabled={isDeleting}>
@@ -45,5 +45,5 @@ export default function DeleteConfirmModal({
         </Button>
       </Group>
     </Modal>
-  )
+  );
 }

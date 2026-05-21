@@ -1,24 +1,29 @@
-import { lazy, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react'
-import { IconReportAnalytics } from '@tabler/icons-react'
+import { IconReportAnalytics } from "@tabler/icons-react";
+import {
+  lazy,
+  type ComponentType,
+  type LazyExoticComponent,
+  type ReactNode,
+} from "react";
 
 export interface ToolMeta {
-  id: string
-  name: string
-  description: string
-  icon: ReactNode
-  component: LazyExoticComponent<ComponentType>
+  id: string;
+  name: string;
+  description: string;
+  icon: ReactNode;
+  component: LazyExoticComponent<ComponentType>;
 }
 
 export const tools: ToolMeta[] = [
   {
-    id: 'sales-report',
-    name: 'Báo cáo hàng bán',
-    description: 'Tổng hợp dữ liệu từ file báo cáo bán hàng theo khách hàng',
+    id: "sales-report",
+    name: "Báo cáo hàng bán",
+    description: "Tổng hợp dữ liệu từ file báo cáo bán hàng theo khách hàng",
     icon: <IconReportAnalytics size={20} />,
-    component: lazy(() => import('./SalesReport')),
+    component: lazy(() => import("./SalesReport")),
   },
-]
+];
 
 export function getToolById(id: string): ToolMeta | undefined {
-  return tools.find((t) => t.id === id)
+  return tools.find((t) => t.id === id);
 }

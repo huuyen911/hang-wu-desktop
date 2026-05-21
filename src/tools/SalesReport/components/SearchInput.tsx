@@ -1,15 +1,21 @@
-import { TextInput, ActionIcon } from '@mantine/core'
-import { IconSearch, IconX } from '@tabler/icons-react'
+import { ActionIcon, TextInput } from "@mantine/core";
+import { IconSearch, IconX } from "@tabler/icons-react";
 
 interface Props {
-  placeholder: string
-  value: string
-  onChange: (value: string) => void
-  minWidth?: number
-  ariaLabel?: string
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  minWidth?: number;
+  ariaLabel?: string;
 }
 
-export default function SearchInput({ placeholder, value, onChange, minWidth = 180, ariaLabel }: Props) {
+export default function SearchInput({
+  placeholder,
+  value,
+  onChange,
+  minWidth = 180,
+  ariaLabel,
+}: Props) {
   return (
     <TextInput
       placeholder={placeholder}
@@ -24,7 +30,7 @@ export default function SearchInput({ placeholder, value, onChange, minWidth = 1
             size="xs"
             variant="subtle"
             color="gray"
-            onClick={() => onChange('')}
+            onClick={() => onChange("")}
             aria-label="Xoá tìm kiếm"
           >
             <IconX size={11} />
@@ -33,5 +39,5 @@ export default function SearchInput({ placeholder, value, onChange, minWidth = 1
       }
       style={{ minWidth }}
     />
-  )
+  );
 }

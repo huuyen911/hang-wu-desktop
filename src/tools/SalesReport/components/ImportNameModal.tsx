@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
-import { Modal, Stack, TextInput, Group, Button, Text } from '@mantine/core'
+import { Button, Group, Modal, Stack, Text, TextInput } from "@mantine/core";
+import { useEffect, useState } from "react";
 
 interface Props {
-  opened: boolean
-  defaultName: string
-  fileName: string
-  rowCount: number
-  isSaving: boolean
-  onClose: () => void
-  onConfirm: (ten: string) => void
+  opened: boolean;
+  defaultName: string;
+  fileName: string;
+  rowCount: number;
+  isSaving: boolean;
+  onClose: () => void;
+  onConfirm: (ten: string) => void;
 }
 
 /** Hỏi tên phiên trước khi lưu một lần import vào lịch sử. */
@@ -21,17 +21,17 @@ export default function ImportNameModal({
   onClose,
   onConfirm,
 }: Props) {
-  const [ten, setTen] = useState(defaultName)
+  const [ten, setTen] = useState(defaultName);
 
   // Mỗi lần mở modal cho file mới → gợi ý lại tên mặc định.
   useEffect(() => {
-    if (opened) setTen(defaultName)
-  }, [opened, defaultName])
+    if (opened) setTen(defaultName);
+  }, [opened, defaultName]);
 
-  const trimmed = ten.trim()
+  const trimmed = ten.trim();
 
   function submit() {
-    if (trimmed && !isSaving) onConfirm(trimmed)
+    if (trimmed && !isSaving) onConfirm(trimmed);
   }
 
   return (
@@ -44,15 +44,18 @@ export default function ImportNameModal({
     >
       <Stack gap="sm">
         <Text size="sm" c="dimmed">
-          File <Text component="span" fw={600}>{fileName}</Text> — {rowCount} dòng hợp lệ.
-          Đặt tên để xem lại trong lịch sử.
+          File{" "}
+          <Text component="span" fw={600}>
+            {fileName}
+          </Text>{" "}
+          — {rowCount} dòng hợp lệ. Đặt tên để xem lại trong lịch sử.
         </Text>
         <TextInput
           label="Tên phiên"
           placeholder="VD: Báo cáo tháng 4/2026"
           value={ten}
           onChange={(e) => setTen(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
           data-autofocus
           required
         />
@@ -66,5 +69,5 @@ export default function ImportNameModal({
         </Group>
       </Stack>
     </Modal>
-  )
+  );
 }

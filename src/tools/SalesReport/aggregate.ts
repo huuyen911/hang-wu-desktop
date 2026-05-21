@@ -6,7 +6,7 @@ import type {
   ParsedReport,
   ProductRow,
   SalesRow,
-} from './types'
+} from "./types";
 
 /**
  * Dựng lại cấu trúc tổng hợp `ParsedReport` (thương hiệu → CEO → tháng → sản
@@ -25,39 +25,39 @@ export function aggregateRows(rows: SalesRow[]): ParsedReport {
         Map<
           string,
           {
-            name: string
-            unit: string
-            qty: number
-            amount: number
-            invoices: Set<string>
-            prices: Set<number>
-            lines: InvoiceRow[]
+            name: string;
+            unit: string;
+            qty: number;
+            amount: number;
+            invoices: Set<string>;
+            prices: Set<number>;
+            lines: InvoiceRow[];
           }
         >
       >
     >
-  >()
+  >();
   // ceo code → first encountered name
-  const ceoNameMap = new Map<string, string>()
+  const ceoNameMap = new Map<string, string>();
 
-  let rowCount = 0
+  let rowCount = 0;
 
   for (const row of rows) {
-    const { ceo, brand, productCode: product } = row
-    if (!brand || !ceo || !product) continue
+    const { ceo, brand, productCode: product } = row;
+    if (!brand || !ceo || !product) continue;
 
-    rowCount++
+    rowCount++;
 
-    if (!ceoNameMap.has(ceo) && row.ceoName) ceoNameMap.set(ceo, row.ceoName)
+    if (!ceoNameMap.has(ceo) && row.ceoName) ceoNameMap.set(ceo, row.ceoName);
 
-    if (!brandMap.has(brand)) brandMap.set(brand, new Map())
-    const ceoMap = brandMap.get(brand)!
+    if (!brandMap.has(brand)) brandMap.set(brand, new Map());
+    const ceoMap = brandMap.get(brand)!;
 
-    if (!ceoMap.has(ceo)) ceoMap.set(ceo, new Map())
-    const monthMap = ceoMap.get(ceo)!
+    if (!ceoMap.has(ceo)) ceoMap.set(ceo, new Map());
+    const monthMap = ceoMap.get(ceo)!;
 
-    if (!monthMap.has(row.month)) monthMap.set(row.month, new Map())
-    const productMap = monthMap.get(row.month)!
+    if (!monthMap.has(row.month)) monthMap.set(row.month, new Map());
+    const productMap = monthMap.get(row.month)!;
 
     if (!productMap.has(product))
       productMap.set(product, {
@@ -68,43 +68,43 @@ export function aggregateRows(rows: SalesRow[]): ParsedReport {
         invoices: new Set(),
         prices: new Set(),
         lines: [],
-      })
-    const entry = productMap.get(product)!
-    const qty = Number.isFinite(row.qty) ? row.qty : 0
-    const amount = Number.isFinite(row.amount) ? row.amount : 0
-    const unitPrice = Number.isFinite(row.unitPrice) ? row.unitPrice : 0
-    entry.qty += qty
-    entry.amount += amount
-    if (row.invoice) entry.invoices.add(row.invoice)
+      });
+    const entry = productMap.get(product)!;
+    const qty = Number.isFinite(row.qty) ? row.qty : 0;
+    const amount = Number.isFinite(row.amount) ? row.amount : 0;
+    const unitPrice = Number.isFinite(row.unitPrice) ? row.unitPrice : 0;
+    entry.qty += qty;
+    entry.amount += amount;
+    if (row.invoice) entry.invoices.add(row.invoice);
     // Bỏ NaN (NaN !== NaN nên Set sẽ phình ra) và bỏ 0 vì 0 không phải đơn giá.
-    if (unitPrice !== 0) entry.prices.add(unitPrice)
+    if (unitPrice !== 0) entry.prices.add(unitPrice);
     entry.lines.push({
       invoice: row.invoice,
       qty,
       unitPrice,
       amount,
       date: row.date,
-    })
+    });
   }
 
-  const brands: BrandSummary[] = []
-  let grandQty = 0
-  let grandAmount = 0
+  const brands: BrandSummary[] = [];
+  let grandQty = 0;
+  let grandAmount = 0;
 
   for (const [brand, ceoMap] of brandMap) {
-    const ceos: CEOSummary[] = []
-    let brandQty = 0
-    let brandAmount = 0
+    const ceos: CEOSummary[] = [];
+    let brandQty = 0;
+    let brandAmount = 0;
 
     for (const [ceo, monthMap] of ceoMap) {
-      const months: MonthSummary[] = []
-      let ceoQty = 0
-      let ceoAmount = 0
+      const months: MonthSummary[] = [];
+      let ceoQty = 0;
+      let ceoAmount = 0;
 
       for (const [month, productMap] of monthMap) {
-        const products: ProductRow[] = []
-        let monthQty = 0
-        let monthAmount = 0
+        const products: ProductRow[] = [];
+        let monthQty = 0;
+        let monthAmount = 0;
 
         for (const [productCode, data] of productMap) {
           products.push({
@@ -116,30 +116,41 @@ export function aggregateRows(rows: SalesRow[]): ParsedReport {
             invoiceCodes: [...data.invoices].sort(),
             unitPrices: [...data.prices].sort((a, b) => a - b),
             rawLines: data.lines,
-          })
-          monthQty += data.qty
-          monthAmount += data.amount
+          });
+          monthQty += data.qty;
+          monthAmount += data.amount;
         }
 
-        products.sort((a, b) => a.productCode.localeCompare(b.productCode))
-        months.push({ month, products, totalQty: monthQty, totalAmount: monthAmount })
-        ceoQty += monthQty
-        ceoAmount += monthAmount
+        products.sort((a, b) => a.productCode.localeCompare(b.productCode));
+        months.push({
+          month,
+          products,
+          totalQty: monthQty,
+          totalAmount: monthAmount,
+        });
+        ceoQty += monthQty;
+        ceoAmount += monthAmount;
       }
 
-      months.sort((a, b) => a.month.localeCompare(b.month))
-      ceos.push({ ceo, ceoName: ceoNameMap.get(ceo) ?? '', months, totalQty: ceoQty, totalAmount: ceoAmount })
-      brandQty += ceoQty
-      brandAmount += ceoAmount
+      months.sort((a, b) => a.month.localeCompare(b.month));
+      ceos.push({
+        ceo,
+        ceoName: ceoNameMap.get(ceo) ?? "",
+        months,
+        totalQty: ceoQty,
+        totalAmount: ceoAmount,
+      });
+      brandQty += ceoQty;
+      brandAmount += ceoAmount;
     }
 
-    ceos.sort((a, b) => a.ceo.localeCompare(b.ceo))
-    brands.push({ brand, ceos, totalQty: brandQty, totalAmount: brandAmount })
-    grandQty += brandQty
-    grandAmount += brandAmount
+    ceos.sort((a, b) => a.ceo.localeCompare(b.ceo));
+    brands.push({ brand, ceos, totalQty: brandQty, totalAmount: brandAmount });
+    grandQty += brandQty;
+    grandAmount += brandAmount;
   }
 
-  brands.sort((a, b) => a.brand.localeCompare(b.brand))
+  brands.sort((a, b) => a.brand.localeCompare(b.brand));
 
-  return { brands, totalQty: grandQty, totalAmount: grandAmount, rowCount }
+  return { brands, totalQty: grandQty, totalAmount: grandAmount, rowCount };
 }

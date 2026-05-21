@@ -4,10 +4,16 @@
  */
 
 export const RESOURCES = {
-  sanPham: { key: ['san-pham'] as const, endpoint: '/api/san-pham' },
-  ceo: { key: ['ceo'] as const, endpoint: '/api/ceo' },
-  nhomSanPham: { key: ['nhom-san-pham'] as const, endpoint: '/api/nhom-san-pham' },
-  salesSession: { key: ['sales-session'] as const, endpoint: '/api/sales-session' },
-} as const
+  sanPham: { key: ["san-pham"] as const, endpoint: "/api/san-pham" },
+  ceo: { key: ["ceo"] as const, endpoint: "/api/ceo" },
+  nhomSanPham: {
+    key: ["nhom-san-pham"] as const,
+    endpoint: "/api/nhom-san-pham",
+  },
+  salesSession: {
+    key: ["sales-session"] as const,
+    endpoint: "/api/sales-session",
+  },
+} as const;
 
-export type ResourceName = keyof typeof RESOURCES
+export type ResourceName = keyof typeof RESOURCES;
