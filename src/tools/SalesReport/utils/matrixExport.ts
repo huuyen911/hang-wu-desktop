@@ -77,6 +77,7 @@ export function buildMatrixExportData(
         colThungMap.set(key, (colThungMap.get(key) ?? 0) + p.quantity / quyCach)
       })
     })
+    colThungMap.forEach((v, key) => colThungMap.set(key, Math.floor(v)))
     const totalThung = [...colThungMap.values()].reduce((s, v) => s + v, 0)
     return { ceo, colThungMap, totalThung }
   })

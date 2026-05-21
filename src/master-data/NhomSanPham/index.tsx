@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useDebounce } from '@/hooks/useDebounce'
 import {
   Table,
   Text,
@@ -9,8 +10,9 @@ import {
   ActionIcon,
   Group,
   Tooltip,
+  Button,
 } from '@mantine/core'
-import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { IconPencil, IconTrash, IconSearch, IconX } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import type { NhomSanPham, NhomSanPhamFormValues, ThuongHieu } from './types'
 import type { SanPham } from '../SanPham/types'
@@ -18,10 +20,13 @@ import { useCrudResource } from '@/hooks/useCrudResource'
 import { api } from '@/lib/api'
 import { RESOURCES } from '@/lib/queryKeys'
 import { THUONG_HIEU_OPTIONS, brandColor } from '@/domain/constants'
+import { normalizeSearch } from '@/utils/search'
 import { mantineTableProps } from '@/styles/table'
 import CrudShell from '@/components/crud/CrudShell'
 import FormModal from '@/components/crud/FormModal'
 import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
+
+const FILTER_W = 250
 
 const EMPTY_FORM: NhomSanPhamFormValues = {
   ten_nhom: '',
@@ -60,6 +65,12 @@ export default function NhomSanPhamPage() {
 
   const setForm = c.setForm
 
+  const [searchTenNhom, setSearchTenNhom] = useState('')
+  const debouncedSearchTenNhom = useDebounce(searchTenNhom, 300)
+  const [searchSanPham, setSearchSanPham] = useState('')
+  const debouncedSearchSanPham = useDebounce(searchSanPham, 300)
+  const [filterThuongHieu, setFilterThuongHieu] = useState<string | null>(null)
+
   const { data: sanPhamList = [] } = useQuery({
     queryKey: RESOURCES.sanPham.key,
     queryFn: () => api.get<SanPham[]>(RESOURCES.sanPham.endpoint),
@@ -86,6 +97,36 @@ export default function NhomSanPhamPage() {
     [sanPhamList],
   )
 
+  const finalFiltered = useMemo(() => {
+    let result = c.items
+    if (debouncedSearchTenNhom.trim()) {
+      const q = normalizeSearch(debouncedSearchTenNhom.trim())
+      result = result.filter((item) => normalizeSearch(item.ten_nhom).includes(q))
+    }
+    if (filterThuongHieu) {
+      result = result.filter((item) => item.thuong_hieu === filterThuongHieu)
+    }
+    if (debouncedSearchSanPham.trim()) {
+      const q = normalizeSearch(debouncedSearchSanPham.trim())
+      result = result.filter((item) =>
+        item.san_pham_ids.some((spId) => {
+          const sp = sanPhamMap.get(spId)
+          if (!sp) return false
+          return normalizeSearch(sp.ma_san_pham).includes(q) || normalizeSearch(sp.ten_san_pham).includes(q)
+        }),
+      )
+    }
+    return result
+  }, [c.items, debouncedSearchTenNhom, filterThuongHieu, debouncedSearchSanPham, sanPhamMap])
+
+  const isFiltering = !!searchTenNhom.trim() || !!filterThuongHieu || !!searchSanPham.trim()
+
+  function clearFilters() {
+    setSearchTenNhom('')
+    setSearchSanPham('')
+    setFilterThuongHieu(null)
+  }
+
   const table = (
     <Table {...mantineTableProps}>
       <Table.Thead>
@@ -97,7 +138,7 @@ export default function NhomSanPhamPage() {
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
-        {c.filtered.map((item) => (
+        {finalFiltered.map((item) => (
           <Table.Tr key={item.id}>
             <Table.Td>
               <Text size="xs" fw={500}>{item.ten_nhom}</Text>
@@ -141,20 +182,74 @@ export default function NhomSanPhamPage() {
     </Table>
   )
 
+  const extraFilters = (
+    <>
+      <TextInput
+        placeholder="Tên nhóm sản phẩm..."
+        aria-label="Tìm theo tên nhóm sản phẩm"
+        size="xs"
+        value={searchTenNhom}
+        onChange={(e) => setSearchTenNhom(e.currentTarget.value)}
+        leftSection={<IconSearch size={12} />}
+        rightSection={
+          searchTenNhom ? (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setSearchTenNhom('')} aria-label="Xoá tìm kiếm tên nhóm">
+              <IconX size={12} />
+            </ActionIcon>
+          ) : null
+        }
+        style={{ width: FILTER_W }}
+      />
+      <TextInput
+        placeholder="Mã, tên sản phẩm..."
+        aria-label="Tìm theo mã, tên sản phẩm"
+        size="xs"
+        value={searchSanPham}
+        onChange={(e) => setSearchSanPham(e.currentTarget.value)}
+        leftSection={<IconSearch size={12} />}
+        rightSection={
+          searchSanPham ? (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setSearchSanPham('')} aria-label="Xoá tìm kiếm sản phẩm">
+              <IconX size={12} />
+            </ActionIcon>
+          ) : null
+        }
+        style={{ width: FILTER_W }}
+      />
+      <Select
+        placeholder="Thương hiệu"
+        aria-label="Lọc theo thương hiệu"
+        size="xs"
+        data={THUONG_HIEU_OPTIONS}
+        value={filterThuongHieu}
+        onChange={setFilterThuongHieu}
+        clearable
+        style={{ width: FILTER_W }}
+      />
+      {isFiltering && (
+        <Button size="xs" variant="subtle" color="red" onClick={clearFilters}>
+          Xoá bộ lọc
+        </Button>
+      )}
+    </>
+  )
+
   return (
     <CrudShell
       title="Danh sách nhóm sản phẩm"
       addLabel="Thêm nhóm"
       onAdd={c.openCreate}
-      search={c.search}
-      onSearchChange={c.setSearch}
-      searchPlaceholder="Tìm theo tên nhóm sản phẩm..."
+      search=""
+      onSearchChange={() => {}}
+      searchPlaceholder=""
+      hideSearch
+      extraFilters={extraFilters}
       error={c.error}
       isLoading={c.isLoading}
-      isEmpty={c.filtered.length === 0}
-      emptyText={c.search ? 'Không tìm thấy nhóm sản phẩm phù hợp' : 'Chưa có nhóm sản phẩm nào'}
+      isEmpty={finalFiltered.length === 0}
+      emptyText={isFiltering ? 'Không tìm thấy nhóm sản phẩm phù hợp' : 'Chưa có nhóm sản phẩm nào'}
       totalCount={c.items.length}
-      filteredCount={c.filtered.length}
+      filteredCount={finalFiltered.length}
       table={table}
     >
       <FormModal

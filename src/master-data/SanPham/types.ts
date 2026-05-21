@@ -8,6 +8,8 @@ export interface SanPham {
   thuong_hieu: ThuongHieu
   la_san_pham_chinh_weilaiya: boolean
   la_san_pham_chinh_elvawell: boolean
+  thuong_ceo?: number | null
+  thuong_cap_tren?: number | null
   created_at: string
   updated_at: string
 }
@@ -19,4 +21,6 @@ export interface SanPhamFormValues {
   thuong_hieu: ThuongHieu | ''
   la_san_pham_chinh_weilaiya: boolean
   la_san_pham_chinh_elvawell: boolean
+  thuong_ceo: number | ''
+  thuong_cap_tren: number | ''
 }

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useDebounce } from '@/hooks/useDebounce'
 import {
   Box, Group, Stack, Text, Button,
   Select, ScrollArea,
-  Center, SegmentedControl, Switch,
+  Center, SegmentedControl,
 } from '@mantine/core'
 import { IconUser, IconUsers, IconPackage, IconBox, IconCash, IconFileExport } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
@@ -13,7 +14,7 @@ import type { BrandSummary, CEOSummary } from '../types'
 import type { CEO } from '@/master-data/CEO/types'
 import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
 import { normalizeSearch } from '@/utils/search'
-import { fmt, fmtQty, fmtAmount, round2 } from '../format'
+import { fmt, fmtQty, fmtAmount } from '../format'
 import { applyOnlyMain, calcTotalThung, makeBrandMatcher, mergeCEOsAcrossBrands } from '../utils/report'
 import MatrixTable from './MatrixTable'
 import CEODetailTable from './CEODetailTable'
@@ -49,6 +50,22 @@ function StatTile({ icon, label, value, accentColor }: StatTileProps) {
   )
 }
 
+export interface FilterState {
+  ceoFilter: string | null
+  monthFilter: string | null
+  productSearch: string
+  invoiceSearch: string
+  importStatus: 'imported' | 'not-imported' | null
+}
+
+export const DEFAULT_FILTER_STATE: FilterState = {
+  ceoFilter: null,
+  monthFilter: null,
+  productSearch: '',
+  invoiceSearch: '',
+  importStatus: null,
+}
+
 interface Props {
   brand: BrandSummary
   allBrands: BrandSummary[]
@@ -60,6 +77,8 @@ interface Props {
   productToGroupIdMap: Map<string, number>
   allNhomGroups: NhomSanPham[]
   productBrandMap: Map<string, string>
+  filters: FilterState
+  onFiltersChange: (update: Partial<FilterState>) => void
 }
 
 export default function BrandPanel({
@@ -73,6 +92,8 @@ export default function BrandPanel({
   productToGroupIdMap,
   allNhomGroups,
   productBrandMap,
+  filters,
+  onFiltersChange,
 }: Props) {
   const [viewMode, setViewMode] = useState<'detail' | 'matrix'>('matrix')
   const [exporting, setExporting] = useState(false)
@@ -82,21 +103,13 @@ export default function BrandPanel({
   const [selectedCEO, setSelectedCEO] = useState<string>(
     brand.ceos.find((c) => matchesBrand(c.ceo))?.ceo ?? '',
   )
-  const [ceoFilter, setCeoFilter] = useState<string | null>(null)
-  const [monthFilter, setMonthFilter] = useState<string | null>(null)
-  const [productSearch, setProductSearch] = useState('')
-  const [invoiceSearch, setInvoiceSearch] = useState('')
-  const [onlyMain, setOnlyMain] = useState(true)
-  const [importStatus, setImportStatus] = useState<'imported' | 'not-imported' | null>(null)
+
+  const { ceoFilter, monthFilter, productSearch, invoiceSearch, importStatus } = filters
+  const debouncedProductSearch = useDebounce(productSearch, 300)
+  const debouncedInvoiceSearch = useDebounce(invoiceSearch, 300)
 
   useEffect(() => {
     setSelectedCEO(brand.ceos.find((c) => matchesBrand(c.ceo))?.ceo ?? '')
-    setCeoFilter(null)
-    setMonthFilter(null)
-    setProductSearch('')
-    setInvoiceSearch('')
-    setOnlyMain(true)
-    setImportStatus(null)
   }, [brand.brand]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Gộp dữ liệu CEO trên mọi thương hiệu để thấy được giao dịch cross-brand.
@@ -126,49 +139,53 @@ export default function BrandPanel({
     [allCEOs],
   )
 
-  const search = normalizeSearch(productSearch.trim())
-  const qInvoice = normalizeSearch(invoiceSearch.trim())
+  const search = normalizeSearch(debouncedProductSearch.trim())
+  const qInvoice = normalizeSearch(debouncedInvoiceSearch.trim())
+
+  const groupIdToNhomName = useMemo(
+    () => new Map(allNhomGroups.map((n) => [n.id, normalizeSearch(n.ten_nhom)])),
+    [allNhomGroups],
+  )
 
   const visibleCEOs = useMemo(
     () =>
       allCEOs
         .filter((c) => {
-          const isMasterOnly = c.months.length === 0
           if (ceoFilter && c.ceo !== ceoFilter) return false
-          if (!isMasterOnly) {
-            if (monthFilter && !c.months.some((m) => m.month === monthFilter)) return false
-            if (
-              search &&
-              !c.months.some((m) =>
-                m.products.some(
-                  (p) =>
-                    normalizeSearch(p.productCode).includes(search) ||
-                    normalizeSearch(p.productName ?? '').includes(search),
-                ),
-              )
+          if (monthFilter && !c.months.some((m) => m.month === monthFilter)) return false
+          if (
+            search &&
+            !c.months.some((m) =>
+              m.products.some((p) => {
+                const groupId = productToGroupIdMap.get(p.productCode)
+                return (
+                  normalizeSearch(p.productCode).includes(search) ||
+                  normalizeSearch(p.productName ?? '').includes(search) ||
+                  (groupId !== undefined && (groupIdToNhomName.get(groupId) ?? '').includes(search))
+                )
+              }),
             )
-              return false
-            if (
-              qInvoice &&
-              !c.months.some((m) =>
-                m.products.some((p) =>
-                  p.invoiceCodes.some((inv) => normalizeSearch(inv).includes(qInvoice)),
-                ),
-              )
+          )
+            return false
+          if (
+            qInvoice &&
+            !c.months.some((m) =>
+              m.products.some((p) =>
+                p.invoiceCodes.some((inv) => normalizeSearch(inv).includes(qInvoice)),
+              ),
             )
-              return false
-          }
+          )
+            return false
           return true
         })
-        .map((c) => (onlyMain ? applyOnlyMain(c, brand.brand, sanPhamChinhSet) : c))
+        .map((c) => applyOnlyMain(c, brand.brand, sanPhamChinhSet))
         .filter((c) => {
           if (!importStatus) return true
-          const thung = calcTotalThung(c, brand.brand, quyCachMap, productBrandMap)
-          return importStatus === 'imported' ? thung > 0 : thung === 0
+          return importStatus === 'imported' ? c.totalQty > 0 : c.totalQty === 0
         }),
     [
-      allCEOs, ceoFilter, monthFilter, search, qInvoice, onlyMain, importStatus,
-      brand.brand, sanPhamChinhSet, quyCachMap, productBrandMap,
+      allCEOs, ceoFilter, monthFilter, search, qInvoice, importStatus,
+      brand.brand, sanPhamChinhSet, productToGroupIdMap, groupIdToNhomName,
     ],
   )
 
@@ -177,19 +194,14 @@ export default function BrandPanel({
   const totalQtyFiltered = visibleCEOs.reduce((s, c) => s + c.totalQty, 0)
   const totalAmountFiltered = visibleCEOs.reduce((s, c) => s + c.totalAmount, 0)
   const totalThungFiltered = visibleCEOs.reduce(
-    (s, c) => s + round2(calcTotalThung(c, brand.brand, quyCachMap, productBrandMap)),
+    (s, c) => s + calcTotalThung(c, brand.brand, quyCachMap, productBrandMap, productToGroupIdMap),
     0,
   )
 
-  const isFiltered = !!ceoFilter || !!monthFilter || !!productSearch.trim() || !!invoiceSearch.trim() || !onlyMain || !!importStatus
+  const isFiltered = !!ceoFilter || !!monthFilter || !!productSearch.trim() || !!invoiceSearch.trim() || !!importStatus
 
   function clearFilters() {
-    setCeoFilter(null)
-    setMonthFilter(null)
-    setProductSearch('')
-    setInvoiceSearch('')
-    setOnlyMain(true)
-    setImportStatus(null)
+    onFiltersChange({ ceoFilter: null, monthFilter: null, productSearch: '', invoiceSearch: '', importStatus: null })
   }
 
   async function handleExport() {
@@ -235,7 +247,7 @@ export default function BrandPanel({
     }
   }
 
-  const activeTotalThung = activeCEO ? calcTotalThung(activeCEO, brand.brand, quyCachMap, productBrandMap) : 0
+  const activeTotalThung = activeCEO ? calcTotalThung(activeCEO, brand.brand, quyCachMap, productBrandMap, productToGroupIdMap) : 0
   const activeInMasterData = activeCEO ? masterCEOCodeSet.has(activeCEO.ceo) : true
 
   return (
@@ -246,7 +258,7 @@ export default function BrandPanel({
         <Group gap="xl">
           <StatTile
             icon={<IconUsers size={16} />}
-            label="Số CEO"
+            label="Tổng CEO"
             value={`${visibleCEOs.length}${isFiltered ? `/${allCEOs.length}` : ''}`}
             accentColor="var(--mantine-color-blue-7)"
           />
@@ -259,7 +271,7 @@ export default function BrandPanel({
             <StatTile
               icon={<IconBox size={16} />}
               label="Tổng thùng"
-              value={fmt.format(round2(totalThungFiltered))}
+              value={fmt.format(totalThungFiltered)}
               accentColor="var(--mantine-color-indigo-7)"
             />
           )}
@@ -303,7 +315,7 @@ export default function BrandPanel({
           placeholder="CEO"
           data={ceoOptions}
           value={ceoFilter}
-          onChange={setCeoFilter}
+          onChange={(v) => onFiltersChange({ ceoFilter: v })}
           searchable clearable size="xs"
           style={{ minWidth: 160 }}
           filter={({ options, search: s }) =>
@@ -313,22 +325,22 @@ export default function BrandPanel({
           }
         />
         <SearchInput
-          placeholder="Mã / tên sản phẩm"
+          placeholder="Mã / Tên / Nhóm sản phẩm"
           value={productSearch}
-          onChange={setProductSearch}
+          onChange={(v) => onFiltersChange({ productSearch: v })}
           minWidth={180}
         />
         <SearchInput
           placeholder="Mã hóa đơn"
           value={invoiceSearch}
-          onChange={setInvoiceSearch}
+          onChange={(v) => onFiltersChange({ invoiceSearch: v })}
           minWidth={150}
         />
         <Select
           size="xs"
           placeholder="Trạng thái nhập hàng"
           value={importStatus}
-          onChange={(v) => setImportStatus(v as 'imported' | 'not-imported' | null)}
+          onChange={(v) => onFiltersChange({ importStatus: v as 'imported' | 'not-imported' | null })}
           data={[
             { value: 'imported', label: 'Có nhập hàng' },
             { value: 'not-imported', label: 'Không nhập hàng' },
@@ -340,15 +352,9 @@ export default function BrandPanel({
           placeholder="Tháng"
           data={monthOptions}
           value={monthFilter}
-          onChange={setMonthFilter}
+          onChange={(v) => onFiltersChange({ monthFilter: v })}
           clearable size="xs"
           style={{ minWidth: 110 }}
-        />
-        <Switch
-          size="xs"
-          label="Chỉ sản phẩm chính"
-          checked={onlyMain}
-          onChange={(e) => setOnlyMain(e.currentTarget.checked)}
         />
         {isFiltered && (
           <Button size="xs" variant="subtle" color="red" onClick={clearFilters}>Xoá bộ lọc</Button>
@@ -391,7 +397,7 @@ export default function BrandPanel({
                           ceo={c}
                           active={c.ceo === activeCEO?.ceo}
                           onClick={() => setSelectedCEO(c.ceo)}
-                          totalThung={calcTotalThung(c, brand.brand, quyCachMap, productBrandMap)}
+                          totalThung={calcTotalThung(c, brand.brand, quyCachMap, productBrandMap, productToGroupIdMap)}
                           inMasterData={masterCEOCodeSet.has(c.ceo)}
                           crossBrands={crossBrands}
                         />
@@ -428,7 +434,7 @@ export default function BrandPanel({
                         {activeTotalThung > 0 && (
                           <>
                             <Text size="xs" c="dimmed">·</Text>
-                            <Text size="xs" c="dimmed">{fmt.format(round2(activeTotalThung))} thùng</Text>
+                            <Text size="xs" c="dimmed">{fmt.format(activeTotalThung)} thùng</Text>
                           </>
                         )}
                         <Text size="xs" c="dimmed">·</Text>

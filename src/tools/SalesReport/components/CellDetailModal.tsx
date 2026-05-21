@@ -1,6 +1,6 @@
 import { Modal, Group, Text, Box } from '@mantine/core'
 import type { CEOSummary, ProductRow } from '../types'
-import { fmt, fmtQty, fmtAmount, fmtAmountOrDash, round2 } from '../format'
+import { fmt, fmtDecimal, fmtQty, fmtAmount, fmtAmountOrDash } from '../format'
 import { brandShort } from '@/domain/constants'
 import { thSticky } from '@/styles/table'
 import BrandTag from './BrandTag'
@@ -15,6 +15,7 @@ export type ColProductEntry = {
 export type ModalCellInfo = {
   ceo: CEOSummary
   col: { key: number | string; name: string; subName?: string; isUngrouped: boolean; crossBrand?: string }
+  colLabel?: string
   thung: number | null
   entries: ColProductEntry[]
   brand: string
@@ -35,7 +36,7 @@ export default function CellDetailModal({
   info: ModalCellInfo
   onClose: () => void
 }) {
-  const { ceo, col, entries, brand } = info
+  const { ceo, col, colLabel: colLabelOverride, entries, brand } = info
 
   type FlatLine = {
     productCode: string; productName: string; unit: string; quyCach: number | null
@@ -67,7 +68,7 @@ export default function CellDetailModal({
   const totalThungCalc = flatLines.reduce((s, l) => s + (l.thung ?? 0), 0)
   const totalQty = flatLines.reduce((s, l) => s + l.qty, 0)
   const totalAmount = flatLines.reduce((s, l) => s + l.amount, 0)
-  const colLabel = col.isUngrouped ? `Sản phẩm ${col.name}` : `Nhóm "${col.name}"`
+  const colLabel = colLabelOverride ?? (col.isUngrouped ? `Sản phẩm ${col.name}` : `Nhóm "${col.name}"`)
 
 
   return (
@@ -116,7 +117,6 @@ export default function CellDetailModal({
                 const rowBg = missingQC
                   ? 'var(--mantine-color-orange-0)'
                   : i % 2 === 1 ? 'var(--mantine-color-gray-0)' : 'white'
-                const thungRounded = line.thung !== null ? round2(line.thung) : null
                 return (
                   <tr key={i} style={{ background: rowBg, borderBottom: '1px solid var(--mantine-color-gray-1)' }}>
                     <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontWeight: 700, fontSize: 11, color: missingQC ? 'var(--mantine-color-orange-7)' : 'var(--mantine-color-blue-7)' }}>
@@ -141,7 +141,7 @@ export default function CellDetailModal({
                       {line.quyCach !== null ? fmt.format(line.quyCach) : '—'}
                     </td>
                     <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 700, color: missingQC ? 'var(--mantine-color-orange-6)' : 'var(--mantine-color-blue-8)' }}>
-                      {thungRounded !== null ? fmt.format(thungRounded) : <span style={{ color: 'var(--mantine-color-orange-5)', fontSize: 11 }}>—</span>}
+                      {line.thung !== null ? fmtDecimal(line.thung) : <span style={{ color: 'var(--mantine-color-orange-5)', fontSize: 11 }}>—</span>}
                     </td>
                     <td style={{ padding: '5px 8px', textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--mantine-color-dimmed)', fontSize: 11 }}>
                       {line.date || '—'}
@@ -167,7 +167,7 @@ export default function CellDetailModal({
                 </td>
                 <td />
                 <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--mantine-color-blue-9)' }}>
-                  {totalThungCalc > 0 ? fmt.format(round2(totalThungCalc)) : '—'}
+                  {totalThungCalc > 0 ? fmt.format(Math.floor(totalThungCalc)) : '—'}
                 </td>
                 <td />
                 <td />

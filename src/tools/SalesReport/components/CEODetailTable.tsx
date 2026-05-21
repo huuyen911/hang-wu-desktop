@@ -3,7 +3,7 @@ import { Box, Group, Stack, Text, Badge, Center, Table } from '@mantine/core'
 import { IconSearch } from '@tabler/icons-react'
 import type { CEOSummary } from '../types'
 import type { NhomSanPham } from '@/master-data/NhomSanPham/types'
-import { fmt, fmtQty, fmtAmount, fmtAmountOrDash, round2 } from '../format'
+import { fmt, fmtDecimal, fmtQty, fmtAmount, fmtAmountOrDash } from '../format'
 import BrandTag from './BrandTag'
 
 interface Props {
@@ -44,14 +44,6 @@ export default function CEODetailTable({
   return (
     <Stack gap="lg">
       {months.map((m) => {
-        const monthTotalThung = m.products.reduce((s, p) => {
-          const productBrand = productBrandMap.get(p.productCode) ?? brand
-          const qc = quyCachMap.get(`${p.productCode}|${productBrand}`)
-          if (!qc) return s
-          return s + (p.rawLines ?? []).reduce((s2, line) => s2 + round2(line.qty / qc), 0)
-        }, 0)
-        const roundedMonthThung = round2(monthTotalThung)
-
         const nhomProductsMap = new Map<number | null, typeof m.products>()
         m.products.forEach((p) => {
           const nhomId = productToGroupIdMap.get(p.productCode) ?? null
@@ -85,6 +77,26 @@ export default function CEODetailTable({
         const ungrouped = nhomProductsMap.get(null) ?? []
         if (ungrouped.length > 0) orderedGroups.push({ nhom: null, products: sortByCode(ungrouped) })
 
+        const groupThungsArr = orderedGroups.map(({ nhom, products: groupProds }) => {
+          if (nhom === null) {
+            // Chưa phân nhóm: floor từng mã sản phẩm, rồi cộng
+            return groupProds.reduce((s, p) => {
+              const productBrand = productBrandMap.get(p.productCode) ?? brand
+              const qc = quyCachMap.get(`${p.productCode}|${productBrand}`)
+              if (!qc) return s
+              return s + Math.floor((p.rawLines ?? []).reduce((s2, line) => s2 + line.qty / qc, 0))
+            }, 0)
+          }
+          // Nhóm thường: cộng tổng nhóm rồi mới floor
+          return Math.floor(groupProds.reduce((s, p) => {
+            const productBrand = productBrandMap.get(p.productCode) ?? brand
+            const qc = quyCachMap.get(`${p.productCode}|${productBrand}`)
+            if (!qc) return s
+            return s + (p.rawLines ?? []).reduce((s2, line) => s2 + line.qty / qc, 0)
+          }, 0))
+        })
+        const roundedMonthThung = groupThungsArr.reduce((s, v) => s + v, 0)
+
         let rowIdx = 0
 
         return (
@@ -100,9 +112,13 @@ export default function CEODetailTable({
             >
               <Badge variant="filled" color="blue" size="sm" radius="sm">{m.month}</Badge>
               <Text size="xs" c="dimmed">{m.products.length} sản phẩm</Text>
+              <Text size="xs" c="dimmed">·</Text>
               <Text size="xs" fw={600} c="dark">Số lượng: {fmtQty(m.totalQty)}</Text>
               {roundedMonthThung > 0 && (
-                <Text size="xs" fw={600} c="dark">{fmt.format(roundedMonthThung)} thùng</Text>
+                <>
+                  <Text size="xs" c="dimmed">·</Text>
+                  <Text size="xs" fw={600} c="dark">Số lượng thùng: {fmt.format(roundedMonthThung)}</Text>
+                </>
               )}
               <Text size="xs" fw={600} c="blue.7" style={{ marginLeft: 'auto' }}>
                 {fmtAmount(m.totalAmount)}
@@ -125,14 +141,8 @@ export default function CEODetailTable({
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {orderedGroups.map(({ nhom, products: groupProds }) => {
-                  const groupThung = groupProds.reduce((s, p) => {
-                    const productBrand = productBrandMap.get(p.productCode) ?? brand
-                    const qc = quyCachMap.get(`${p.productCode}|${productBrand}`)
-                    if (!qc) return s
-                    return s + (p.rawLines ?? []).reduce((s2, line) => s2 + round2(line.qty / qc), 0)
-                  }, 0)
-                  const roundedGroupThung = round2(groupThung)
+                {orderedGroups.map(({ nhom, products: groupProds }, groupIdx) => {
+                  const roundedGroupThung = groupThungsArr[groupIdx]
                   const isUngrouped = nhom === null
                   const isCrossBrand = !isUngrouped && nhom.thuong_hieu !== brand
 
@@ -159,8 +169,7 @@ export default function CEODetailTable({
                             {roundedGroupThung > 0 && (
                               <>
                                 <Text size="xs" c="dimmed">·</Text>
-                                <Text size="xs" fw={600} c={isUngrouped ? 'red.6' : 'teal.7'}>
-                                  {fmt.format(roundedGroupThung)} thùng
+                                <Text size="xs" fw={600} c={isUngrouped ? 'red.6' : 'teal.7'}>Số lượng thùng: {fmt.format(roundedGroupThung)}
                                 </Text>
                               </>
                             )}
@@ -177,7 +186,6 @@ export default function CEODetailTable({
 
                         return rawLines.map((line, lineIdx) => {
                           const thung = quyCach ? line.qty / quyCach : null
-                          const thungRounded = thung !== null ? round2(thung) : null
                           const rowBg = missingQC
                             ? 'var(--mantine-color-orange-0)'
                             : rowIdx % 2 === 0 ? 'white' : 'var(--mantine-color-gray-0)'
@@ -207,7 +215,7 @@ export default function CEODetailTable({
                                 {quyCach !== null ? fmt.format(quyCach) : '—'}
                               </Table.Td>
                               <Table.Td style={{ textAlign: 'right', fontWeight: 700, color: missingQC ? 'var(--mantine-color-orange-6)' : 'var(--mantine-color-blue-8)' }}>
-                                {thungRounded !== null ? fmt.format(thungRounded) : <span style={{ color: 'var(--mantine-color-orange-5)', fontSize: 11 }}>—</span>}
+                                {thung !== null ? fmtDecimal(thung) : <span style={{ color: 'var(--mantine-color-orange-5)', fontSize: 11 }}>—</span>}
                               </Table.Td>
                               <Table.Td style={{ textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--mantine-color-dimmed)', fontSize: 11 }}>
                                 {line.date || '—'}

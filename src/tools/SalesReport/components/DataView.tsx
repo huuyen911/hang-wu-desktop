@@ -7,7 +7,7 @@ import { aggregateRows } from '../aggregate'
 import { useSalesRows, flushSavePending } from '../hooks/useSalesRows'
 import { useReportMasterData } from '../hooks/useReportMasterData'
 import { useSalesSessions } from '../hooks/useSalesSessions'
-import BrandPanel from './BrandPanel'
+import BrandPanel, { DEFAULT_FILTER_STATE, type FilterState } from './BrandPanel'
 import SalesRowsTable from './SalesRowsTable'
 
 interface Props {
@@ -33,6 +33,7 @@ export default function DataView({ sessionName, onReset }: Props) {
   const data = useMemo(() => aggregateRows(rows ?? []), [rows])
 
   const [activeBrand, setActiveBrand] = useState(data.brands[0]?.brand ?? '')
+  const [brandFilters, setBrandFilters] = useState<Map<string, FilterState>>(new Map())
   const currentBrand =
     data.brands.find((b) => b.brand === activeBrand)?.brand ?? data.brands[0]?.brand ?? ''
 
@@ -196,6 +197,14 @@ export default function DataView({ sessionName, onReset }: Props) {
                   productToGroupIdMap={productToGroupIdMap}
                   allNhomGroups={nhomSanPhamList}
                   productBrandMap={productBrandMap}
+                  filters={brandFilters.get(b.brand) ?? DEFAULT_FILTER_STATE}
+                  onFiltersChange={(update) =>
+                    setBrandFilters((prev) => {
+                      const next = new Map(prev)
+                      next.set(b.brand, { ...(prev.get(b.brand) ?? DEFAULT_FILTER_STATE), ...update })
+                      return next
+                    })
+                  }
                 />
               ) : null,
             )}

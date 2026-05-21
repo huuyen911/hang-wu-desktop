@@ -42,23 +42,30 @@ export function applyOnlyMain(
   return { ...ceo, months, totalQty, totalAmount }
 }
 
-/** Tổng số lượng thùng của một CEO (số lượng / quy cách, bỏ qua SP thiếu quy cách). */
+/** Tổng số lượng thùng của một CEO — giống MatrixTable:
+ *  tích lũy raw xuyên suốt tất cả tháng theo key (nhomId hoặc productCode),
+ *  rồi floor từng key và cộng lại. */
 export function calcTotalThung(
   ceo: CEOSummary,
   brand: string,
   quyCachMap: Map<string, number>,
   productBrandMap: Map<string, string>,
+  productToGroupIdMap: Map<string, number>,
 ): number {
-  return ceo.months.reduce(
-    (s, m) =>
-      s +
-      m.products.reduce((s2, p) => {
-        const productBrand = productBrandMap.get(p.productCode) ?? brand
-        const qc = quyCachMap.get(`${p.productCode}|${productBrand}`)
-        return s2 + (qc ? p.quantity / qc : 0)
-      }, 0),
-    0,
-  )
+  const keyRawMap = new Map<number | string, number>()
+  ceo.months.forEach((m) => {
+    m.products.forEach((p) => {
+      const productBrand = productBrandMap.get(p.productCode) ?? brand
+      const qc = quyCachMap.get(`${p.productCode}|${productBrand}`)
+      if (!qc) return
+      const groupId = productToGroupIdMap.get(p.productCode)
+      const key: number | string = groupId !== undefined ? groupId : p.productCode
+      keyRawMap.set(key, (keyRawMap.get(key) ?? 0) + p.quantity / qc)
+    })
+  })
+  let total = 0
+  keyRawMap.forEach((v) => { total += Math.floor(v) })
+  return total
 }
 
 /**

@@ -1,5 +1,6 @@
+import { useState, useMemo } from 'react'
+import { useDebounce } from '@/hooks/useDebounce'
 import {
-  Table,
   Text,
   TextInput,
   Select,
@@ -7,16 +8,21 @@ import {
   ActionIcon,
   Group,
   Tooltip,
+  Box,
+  Paper,
+  Button,
 } from '@mantine/core'
-import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { IconPencil, IconTrash, IconChevronDown, IconChevronRight, IconSearch, IconX } from '@tabler/icons-react'
 import type { CEO, CEOFormValues, NhanVienChamSoc } from './types'
 import { useCrudResource } from '@/hooks/useCrudResource'
 import { RESOURCES } from '@/lib/queryKeys'
 import { NHAN_VIEN_OPTIONS, nhanVienColor } from '@/domain/constants'
-import { mantineTableProps } from '@/styles/table'
+import { normalizeSearch } from '@/utils/search'
 import CrudShell from '@/components/crud/CrudShell'
 import FormModal from '@/components/crud/FormModal'
 import DeleteConfirmModal from '@/components/crud/DeleteConfirmModal'
+
+const FILTER_W = 220
 
 const EMPTY_FORM: CEOFormValues = {
   ma_ceo: '',
@@ -32,6 +38,156 @@ function validate(form: CEOFormValues): Partial<Record<keyof CEOFormValues, stri
   if (!form.nhan_vien_cham_soc) errors.nhan_vien_cham_soc = 'Vui lòng chọn nhân viên chăm sóc'
   return errors
 }
+
+interface TreeNode {
+  item: CEO
+  children: TreeNode[]
+}
+
+
+function buildTree(items: CEO[]): TreeNode[] {
+  const byParent = new Map<number | null, CEO[]>()
+  for (const item of items) {
+    const key = item.ceo_cap_tren_id ?? null
+    if (!byParent.has(key)) byParent.set(key, [])
+    byParent.get(key)!.push(item)
+  }
+  function buildNodes(parentId: number | null): TreeNode[] {
+    return (byParent.get(parentId) ?? []).map((item) => ({
+      item,
+      children: buildNodes(item.id),
+    }))
+  }
+  return buildNodes(null)
+}
+
+function filterTree(nodes: TreeNode[], predicate: (item: CEO) => boolean): TreeNode[] {
+  return nodes.reduce<TreeNode[]>((acc, node) => {
+    const filteredChildren = filterTree(node.children, predicate)
+    if (predicate(node.item) || filteredChildren.length > 0) {
+      acc.push({ ...node, children: filteredChildren })
+    }
+    return acc
+  }, [])
+}
+
+interface TreeItemProps {
+  node: TreeNode
+  collapsed: Set<number>
+  onToggle: (id: number) => void
+  onEdit: (item: CEO) => void
+  onDelete: (item: CEO) => void
+  matchPredicate?: (item: CEO) => boolean
+}
+
+function TreeItem({ node, collapsed, onToggle, onEdit, onDelete, matchPredicate }: TreeItemProps) {
+  const [hovered, setHovered] = useState(false)
+  const hasChildren = node.children.length > 0
+  const isCollapsed = collapsed.has(node.item.id)
+  const descendantCount = node.children.length
+  const isMatch = !!matchPredicate?.(node.item)
+
+  return (
+    <Box>
+      <Group
+        px={8}
+        py={7}
+        wrap="nowrap"
+        gap={6}
+        onClick={hasChildren ? () => onToggle(node.item.id) : undefined}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          borderRadius: 6,
+          background: isMatch
+            ? hovered ? 'var(--mantine-color-yellow-1)' : 'var(--mantine-color-yellow-0)'
+            : hovered ? 'var(--mantine-color-gray-0)' : 'transparent',
+          transition: 'background 0.1s',
+          cursor: hasChildren ? 'pointer' : 'default',
+        }}
+      >
+        {hasChildren ? (
+          <Box style={{ flexShrink: 0, display: 'flex', alignItems: 'center', width: 22 }}>
+            {isCollapsed ? <IconChevronRight size={12} /> : <IconChevronDown size={12} />}
+          </Box>
+        ) : (
+          <Box w={22} style={{ flexShrink: 0 }} />
+        )}
+        <Text size="sm" ff="monospace" fw={hasChildren ? 700 : 500} style={{ flexShrink: 0 }}>
+          {node.item.ma_ceo}
+        </Text>
+        <Text
+          size="sm"
+          c={hasChildren ? 'dark' : 'dimmed'}
+          style={{ flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {node.item.ten_ceo}
+        </Text>
+        {descendantCount > 0 && (
+          <Badge variant="light" color="blue" size="sm" radius="sm" style={{ flexShrink: 0 }}>
+            {descendantCount}
+          </Badge>
+        )}
+        <Badge
+          color={nhanVienColor(node.item.nhan_vien_cham_soc)}
+          variant="light"
+          size="xs"
+          style={{ flexShrink: 0 }}
+        >
+          {node.item.nhan_vien_cham_soc}
+        </Badge>
+
+        <Group gap={2} wrap="nowrap" style={{ flexShrink: 0, marginLeft: 'auto' }}>
+          <Tooltip label="Sửa" withArrow>
+            <ActionIcon
+              variant="subtle"
+              color="blue"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onEdit(node.item) }}
+              aria-label={`Sửa CEO ${node.item.ma_ceo}`}
+            >
+              <IconPencil size={13} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Xóa" withArrow>
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onDelete(node.item) }}
+              aria-label={`Xoá CEO ${node.item.ma_ceo}`}
+            >
+              <IconTrash size={13} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Group>
+
+      {hasChildren && !isCollapsed && (
+        <Box
+          ml={20}
+          pl={10}
+          style={{
+            borderLeft: '1.5px solid var(--mantine-color-gray-3)',
+          }}
+        >
+          {node.children.map((child) => (
+            <TreeItem
+              key={child.item.id}
+              node={child}
+              collapsed={collapsed}
+              onToggle={onToggle}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              matchPredicate={matchPredicate}
+            />
+          ))}
+        </Box>
+      )}
+    </Box>
+  )
+}
+
 
 export default function CEOPage() {
   const c = useCrudResource<CEO, CEOFormValues>({
@@ -55,65 +211,104 @@ export default function CEOPage() {
   })
 
   const setForm = c.setForm
+  const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
+  const [searchCEO, setSearchCEO] = useState('')
+  const debouncedSearchCEO = useDebounce(searchCEO, 300)
+  const [filterNhanVien, setFilterNhanVien] = useState<string | null>(null)
+
+  const treeNodes = useMemo(() => buildTree(c.items), [c.items])
+
+  const isFiltering = !!searchCEO.trim() || !!filterNhanVien
+
+  const predicate = useMemo(() => (item: CEO) => {
+    if (debouncedSearchCEO.trim()) {
+      const q = normalizeSearch(debouncedSearchCEO.trim())
+      if (!normalizeSearch(item.ma_ceo).includes(q) && !normalizeSearch(item.ten_ceo).includes(q)) return false
+    }
+    if (filterNhanVien && item.nhan_vien_cham_soc !== filterNhanVien) return false
+    return true
+  }, [debouncedSearchCEO, filterNhanVien])
+
+  const visibleNodes = useMemo(
+    () => isFiltering ? filterTree(treeNodes, predicate) : treeNodes,
+    [isFiltering, treeNodes, predicate],
+  )
+
+  const matchCount = useMemo(
+    () => isFiltering ? c.items.filter(predicate).length : c.items.length,
+    [isFiltering, c.items, predicate],
+  )
+
+  const effectiveCollapsed = isFiltering ? new Set<number>() : collapsed
+
+  function clearFilters() {
+    setSearchCEO('')
+    setFilterNhanVien(null)
+  }
+
+  function toggleCollapse(id: number) {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const capTrenOptions = c.items
     .filter((item) => item.id !== c.editItem?.id)
     .map((item) => ({ value: String(item.id), label: `${item.ma_ceo} – ${item.ten_ceo}` }))
 
-  function getCapTrenName(id: number | null): string {
-    if (!id) return '—'
-    const found = c.items.find((item) => item.id === id)
-    return found ? `${found.ma_ceo} – ${found.ten_ceo}` : '—'
-  }
+  const extraFilters = (
+    <>
+      <TextInput
+        placeholder="Mã, tên CEO..."
+        aria-label="Tìm theo mã, tên CEO"
+        size="xs"
+        value={searchCEO}
+        onChange={(e) => setSearchCEO(e.currentTarget.value)}
+        leftSection={<IconSearch size={12} />}
+        rightSection={
+          searchCEO ? (
+            <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => setSearchCEO('')} aria-label="Xoá tìm kiếm">
+              <IconX size={12} />
+            </ActionIcon>
+          ) : null
+        }
+        style={{ width: FILTER_W }}
+      />
+      <Select
+        placeholder="Nhân viên chăm sóc"
+        aria-label="Lọc theo nhân viên chăm sóc"
+        size="xs"
+        data={NHAN_VIEN_OPTIONS}
+        value={filterNhanVien}
+        onChange={setFilterNhanVien}
+        clearable
+        style={{ width: FILTER_W }}
+      />
+      {isFiltering && (
+        <Button size="xs" variant="subtle" color="red" onClick={clearFilters}>
+          Xoá bộ lọc
+        </Button>
+      )}
+    </>
+  )
 
-  const table = (
-    <Table {...mantineTableProps}>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th scope="col">Mã CEO</Table.Th>
-          <Table.Th scope="col">Tên CEO</Table.Th>
-          <Table.Th scope="col">CEO cấp trên</Table.Th>
-          <Table.Th scope="col">Nhân viên chăm sóc</Table.Th>
-          <Table.Th scope="col" style={{ textAlign: 'center', width: 100 }}>Thao tác</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {c.filtered.map((item) => (
-          <Table.Tr key={item.id}>
-            <Table.Td>
-              <Text size="xs" ff="monospace" fw={500}>{item.ma_ceo}</Text>
-            </Table.Td>
-            <Table.Td>
-              <Text size="xs">{item.ten_ceo}</Text>
-            </Table.Td>
-            <Table.Td>
-              <Text size="xs" c={item.ceo_cap_tren_id ? undefined : 'dimmed'}>
-                {getCapTrenName(item.ceo_cap_tren_id)}
-              </Text>
-            </Table.Td>
-            <Table.Td>
-              <Badge color={nhanVienColor(item.nhan_vien_cham_soc)} variant="light" size="sm">
-                {item.nhan_vien_cham_soc}
-              </Badge>
-            </Table.Td>
-            <Table.Td style={{ textAlign: 'center' }}>
-              <Group gap={6} justify="center" wrap="nowrap">
-                <Tooltip label="Sửa" withArrow>
-                  <ActionIcon variant="light" color="blue" size="sm" onClick={() => c.openEdit(item)} aria-label={`Sửa CEO ${item.ma_ceo}`}>
-                    <IconPencil size={14} />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Xóa" withArrow>
-                  <ActionIcon variant="subtle" color="red" size="sm" onClick={() => c.setDeleteTarget(item)} aria-label={`Xoá CEO ${item.ma_ceo}`}>
-                    <IconTrash size={14} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            </Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+  const tree = (
+    <Paper withBorder p={6} radius="md">
+      {visibleNodes.map((node) => (
+        <TreeItem
+          key={node.item.id}
+          node={node}
+          collapsed={effectiveCollapsed}
+          onToggle={toggleCollapse}
+          onEdit={c.openEdit}
+          onDelete={c.setDeleteTarget}
+          matchPredicate={isFiltering ? predicate : undefined}
+        />
+      ))}
+    </Paper>
   )
 
   return (
@@ -121,17 +316,18 @@ export default function CEOPage() {
       title="Danh sách CEO"
       addLabel="Thêm CEO"
       onAdd={c.openCreate}
-      search={c.search}
-      onSearchChange={c.setSearch}
-      searchPlaceholder="Tìm theo mã, tên hoặc nhân viên chăm sóc..."
-      searchMaxWidth={420}
+      search=""
+      onSearchChange={() => {}}
+      searchPlaceholder=""
+      hideSearch
+      extraFilters={extraFilters}
       error={c.error}
       isLoading={c.isLoading}
-      isEmpty={c.filtered.length === 0}
-      emptyText={c.search ? 'Không tìm thấy CEO phù hợp' : 'Chưa có CEO nào'}
+      isEmpty={visibleNodes.length === 0}
+      emptyText={isFiltering ? 'Không tìm thấy CEO phù hợp' : 'Chưa có CEO nào'}
       totalCount={c.items.length}
-      filteredCount={c.filtered.length}
-      table={table}
+      filteredCount={matchCount}
+      table={tree}
     >
       <FormModal
         opened={c.modalOpen}

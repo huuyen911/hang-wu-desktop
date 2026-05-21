@@ -1,6 +1,6 @@
 import { Box, Group, Stack, Text } from '@mantine/core'
 import type { CEOSummary } from '../types'
-import { fmt, fmtQty, fmtAmount, round2 } from '../format'
+import { fmt, fmtQty, fmtAmount } from '../format'
 import BrandTag from './BrandTag'
 
 interface Props {
@@ -52,7 +52,7 @@ export default function CEOListItem({ ceo, active, onClick, totalThung, inMaster
             <>
               {totalThung > 0 && (
                 <Text size="xs" fw={600} c={active ? 'white' : 'dark'} style={{ whiteSpace: 'nowrap' }}>
-                  {fmt.format(round2(totalThung))} thùng
+                  {fmt.format(totalThung)} thùng
                 </Text>
               )}
               <Text size="xs" c={active ? 'blue.1' : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>

@@ -12,7 +12,7 @@ export interface ToolMeta {
 export const tools: ToolMeta[] = [
   {
     id: 'sales-report',
-    name: 'Hàng bán theo khách',
+    name: 'Báo cáo hàng bán',
     description: 'Tổng hợp dữ liệu từ file báo cáo bán hàng theo khách hàng',
     icon: <IconReportAnalytics size={20} />,
     component: lazy(() => import('./SalesReport')),

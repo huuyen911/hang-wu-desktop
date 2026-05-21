@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useDebounce } from './useDebounce'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { notifications } from '@mantine/notifications'
 import { api } from '@/lib/api'
@@ -56,6 +57,7 @@ export function useCrudResource<T extends { id: number }, F>(cfg: CrudConfig<T, 
   const [errors, setErrors] = useState<Partial<Record<keyof F, string>>>({})
   const [deleteTarget, setDeleteTarget] = useState<T | null>(null)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: cfg.resource.key })
@@ -125,12 +127,12 @@ export function useCrudResource<T extends { id: number }, F>(cfg: CrudConfig<T, 
   }
 
   const filtered = useMemo(() => {
-    const q = normalizeSearch(search.trim())
+    const q = normalizeSearch(debouncedSearch.trim())
     if (!q) return items
     return items.filter((item) =>
       cfg.searchFields(item).some((f) => f != null && normalizeSearch(f).includes(q)),
     )
-  }, [items, search, cfg])
+  }, [items, debouncedSearch, cfg])
 
   return {
     items,

@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import {
   Table,
   Text,
@@ -5,8 +6,10 @@ import {
   NumberInput,
   Select,
   Switch,
+  Checkbox,
   Badge,
   ActionIcon,
+  Button,
   Center,
   Group,
   Tooltip,
@@ -28,6 +31,8 @@ const EMPTY_FORM: SanPhamFormValues = {
   thuong_hieu: '',
   la_san_pham_chinh_weilaiya: false,
   la_san_pham_chinh_elvawell: false,
+  thuong_ceo: '',
+  thuong_cap_tren: '',
 }
 
 function validate(form: SanPhamFormValues): Partial<Record<keyof SanPhamFormValues, string>> {
@@ -52,13 +57,32 @@ export default function SanPhamPage() {
       thuong_hieu: item.thuong_hieu,
       la_san_pham_chinh_weilaiya: item.la_san_pham_chinh_weilaiya,
       la_san_pham_chinh_elvawell: item.la_san_pham_chinh_elvawell,
+      thuong_ceo: item.thuong_ceo ?? '',
+      thuong_cap_tren: item.thuong_cap_tren ?? '',
     }),
-    toPayload: (form) => ({ ...form, quy_cach: Number(form.quy_cach) }),
+    toPayload: (form) => ({
+      ...form,
+      quy_cach: Number(form.quy_cach),
+      thuong_ceo: form.thuong_ceo === '' ? null : Number(form.thuong_ceo),
+      thuong_cap_tren: form.thuong_cap_tren === '' ? null : Number(form.thuong_cap_tren),
+    }),
     validate,
     nameOfForm: (f) => f.ten_san_pham,
     nameOfItem: (i) => i.ten_san_pham,
-    searchFields: (i) => [i.ma_san_pham, i.ten_san_pham, i.thuong_hieu],
+    searchFields: (i) => [i.ma_san_pham, i.ten_san_pham],
   })
+
+  const [filterBrand, setFilterBrand] = useState<string | null>(null)
+  const [filterChinhElva, setFilterChinhElva] = useState(false)
+  const [filterChinhWei, setFilterChinhWei] = useState(false)
+
+  const displayFiltered = useMemo(() => {
+    let result = c.filtered
+    if (filterBrand) result = result.filter((i) => i.thuong_hieu === filterBrand)
+    if (filterChinhElva) result = result.filter((i) => i.la_san_pham_chinh_elvawell)
+    if (filterChinhWei) result = result.filter((i) => i.la_san_pham_chinh_weilaiya)
+    return result
+  }, [c.filtered, filterBrand, filterChinhElva, filterChinhWei])
 
   const setForm = c.setForm
 
@@ -79,11 +103,13 @@ export default function SanPhamPage() {
           <Table.Th scope="col" style={{ width: 120 }}>Thương hiệu</Table.Th>
           <Table.Th scope="col" style={{ textAlign: 'center', width: 130 }}>Chính (Elvawell)</Table.Th>
           <Table.Th scope="col" style={{ textAlign: 'center', width: 130 }}>Chính (Weilaiya)</Table.Th>
+          <Table.Th scope="col" style={{ textAlign: 'right', width: 130 }}>Thưởng CEO</Table.Th>
+          <Table.Th scope="col" style={{ textAlign: 'right', width: 130 }}>Thưởng cấp trên</Table.Th>
           <Table.Th scope="col" style={{ textAlign: 'center', width: 100 }}>Thao tác</Table.Th>
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
-        {c.filtered.map((item) => (
+        {displayFiltered.map((item) => (
           <Table.Tr key={item.id}>
             <Table.Td>
               <Text size="xs" ff="monospace" fw={500}>{item.ma_san_pham}</Text>
@@ -105,6 +131,12 @@ export default function SanPhamPage() {
             <Table.Td style={{ textAlign: 'center' }}>
               <Center>{mainFlag(item.la_san_pham_chinh_weilaiya)}</Center>
             </Table.Td>
+            <Table.Td style={{ textAlign: 'right' }}>
+              <Text size="xs">{item.thuong_ceo != null ? item.thuong_ceo.toLocaleString('vi-VN') : '—'}</Text>
+            </Table.Td>
+            <Table.Td style={{ textAlign: 'right' }}>
+              <Text size="xs">{item.thuong_cap_tren != null ? item.thuong_cap_tren.toLocaleString('vi-VN') : '—'}</Text>
+            </Table.Td>
             <Table.Td style={{ textAlign: 'center' }}>
               <Group gap={6} justify="center" wrap="nowrap">
                 <Tooltip label="Sửa" withArrow>
@@ -125,6 +157,48 @@ export default function SanPhamPage() {
     </Table>
   )
 
+  const FILTER_W = 250
+
+  const isAnyFilterActive = !!c.search || !!filterBrand || filterChinhElva || filterChinhWei
+
+  function clearAllFilters() {
+    c.setSearch('')
+    setFilterBrand(null)
+    setFilterChinhElva(false)
+    setFilterChinhWei(false)
+  }
+
+  const extraFilters = (
+    <>
+      <Select
+        placeholder="Thương hiệu"
+        data={THUONG_HIEU_OPTIONS}
+        value={filterBrand}
+        onChange={setFilterBrand}
+        clearable
+        size="xs"
+        style={{ width: FILTER_W }}
+      />
+      <Checkbox
+        label="Chính (Elvawell)"
+        checked={filterChinhElva}
+        onChange={(e) => setFilterChinhElva(e.currentTarget.checked)}
+        size="xs"
+      />
+      <Checkbox
+        label="Chính (Weilaiya)"
+        checked={filterChinhWei}
+        onChange={(e) => setFilterChinhWei(e.currentTarget.checked)}
+        size="xs"
+      />
+      {isAnyFilterActive && (
+        <Button size="xs" variant="subtle" color="red" onClick={clearAllFilters}>
+          Xoá bộ lọc
+        </Button>
+      )}
+    </>
+  )
+
   return (
     <CrudShell
       title="Danh sách sản phẩm"
@@ -132,13 +206,17 @@ export default function SanPhamPage() {
       onAdd={c.openCreate}
       search={c.search}
       onSearchChange={c.setSearch}
-      searchPlaceholder="Tìm theo mã, tên hoặc thương hiệu..."
+      searchPlaceholder="Tìm theo mã, tên sản phẩm..."
+      searchMaxWidth={FILTER_W}
+      searchFixed
+      searchSize="xs"
+      extraFilters={extraFilters}
       error={c.error}
       isLoading={c.isLoading}
-      isEmpty={c.filtered.length === 0}
-      emptyText={c.search ? 'Không tìm thấy sản phẩm phù hợp' : 'Chưa có sản phẩm nào'}
+      isEmpty={displayFiltered.length === 0}
+      emptyText={isAnyFilterActive ? 'Không tìm thấy sản phẩm phù hợp' : 'Chưa có sản phẩm nào'}
       totalCount={c.items.length}
-      filteredCount={c.filtered.length}
+      filteredCount={displayFiltered.length}
       table={table}
     >
       <FormModal
@@ -183,6 +261,26 @@ export default function SanPhamPage() {
           value={c.form.thuong_hieu || null}
           onChange={(val) => setForm((f) => ({ ...f, thuong_hieu: (val as ThuongHieu) ?? '' }))}
           error={c.errors.thuong_hieu}
+        />
+        <NumberInput
+          label="Thưởng CEO"
+          placeholder="Nhập số tiền thưởng CEO"
+          min={0}
+          allowDecimal={false}
+          thousandSeparator="."
+          decimalSeparator=","
+          value={c.form.thuong_ceo}
+          onChange={(val) => setForm((f) => ({ ...f, thuong_ceo: val as number | '' }))}
+        />
+        <NumberInput
+          label="Thưởng cấp trên"
+          placeholder="Nhập số tiền thưởng cấp trên"
+          min={0}
+          allowDecimal={false}
+          thousandSeparator="."
+          decimalSeparator=","
+          value={c.form.thuong_cap_tren}
+          onChange={(val) => setForm((f) => ({ ...f, thuong_cap_tren: val as number | '' }))}
         />
         <Switch
           label="Sản phẩm chính — Elvawell"

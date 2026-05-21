@@ -291,7 +291,7 @@ pub fn export_matrix_excel_file(
             } else {
                 match val {
                     serde_json::Value::Number(n) if is_num => {
-                        let v = (n.as_f64().unwrap_or(0.0) * 100.0).round() / 100.0;
+                        let v = n.as_f64().unwrap_or(0.0).floor();
                         let fmt = match (is_alt, v > 0.0) {
                             (false, true)  => &num_fmt_blue,
                             (false, false) => &num_fmt,

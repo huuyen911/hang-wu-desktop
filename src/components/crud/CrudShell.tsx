@@ -21,6 +21,13 @@ interface Props {
   onSearchChange: (v: string) => void
   searchPlaceholder: string
   searchMaxWidth?: number
+  /** Khi true: TextInput dùng width cố định = searchMaxWidth thay vì flex-grow. */
+  searchFixed?: boolean
+  searchSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  /** Ẩn ô tìm kiếm chính — dùng khi trang tự quản lý toàn bộ bộ lọc qua extraFilters. */
+  hideSearch?: boolean
+  /** Các bộ lọc bổ sung render sau ô tìm kiếm (Select, Checkbox...). */
+  extraFilters?: ReactNode
   error?: unknown
   isLoading: boolean
   isEmpty: boolean
@@ -46,6 +53,10 @@ export default function CrudShell({
   onSearchChange,
   searchPlaceholder,
   searchMaxWidth = 360,
+  searchFixed = false,
+  searchSize,
+  hideSearch = false,
+  extraFilters,
   error,
   isLoading,
   isEmpty,
@@ -58,7 +69,6 @@ export default function CrudShell({
   // Tách dấu "+" thừa nếu có để dùng IconPlus.
   const cleanLabel = addLabel.replace(/^\s*\+\s*/, '')
   const showCount = totalCount != null
-  const isFiltered = !!search.trim()
 
   return (
     <Box p="md" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -74,35 +84,39 @@ export default function CrudShell({
         </Button>
       </Group>
 
-      <Group gap="sm" mb="md" wrap="nowrap" align="center">
-        <TextInput
-          placeholder={searchPlaceholder}
-          aria-label={searchPlaceholder}
-          value={search}
-          onChange={(e) => onSearchChange(e.currentTarget.value)}
-          leftSection={<IconSearch size={14} />}
-          rightSection={
-            search ? (
-              <ActionIcon
-                size="sm"
-                variant="subtle"
-                color="gray"
-                onClick={() => onSearchChange('')}
-                aria-label="Xoá tìm kiếm"
-              >
-                <IconX size={14} />
-              </ActionIcon>
-            ) : null
-          }
-          style={{ flex: 1, maxWidth: searchMaxWidth }}
-        />
-        {showCount && (
-          <Text size="sm" c="dimmed">
-            <Text span fw={600} c="dark">{filteredCount ?? totalCount}</Text>
-            {isFiltered && filteredCount !== totalCount ? `/${totalCount}` : ''} bản ghi
-          </Text>
+      <Group gap="sm" mb={showCount ? 'xs' : 'md'} wrap="wrap" align="center">
+        {!hideSearch && (
+          <TextInput
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+            value={search}
+            onChange={(e) => onSearchChange(e.currentTarget.value)}
+            leftSection={<IconSearch size={14} />}
+            rightSection={
+              search ? (
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  color="gray"
+                  onClick={() => onSearchChange('')}
+                  aria-label="Xoá tìm kiếm"
+                >
+                  <IconX size={14} />
+                </ActionIcon>
+              ) : null
+            }
+            size={searchSize}
+            style={searchFixed ? { width: searchMaxWidth } : { flex: 1, maxWidth: searchMaxWidth }}
+          />
         )}
+        {extraFilters}
       </Group>
+      {showCount && (
+        <Text size="sm" c="dimmed" mb="md">
+          <Text span fw={600} c="dark">{filteredCount ?? totalCount}</Text>
+          {filteredCount != null && filteredCount !== totalCount ? `/${totalCount}` : ''} bản ghi
+        </Text>
+      )}
 
       {error != null && (
         <Alert color="red" mb="md">

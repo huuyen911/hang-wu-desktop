@@ -13,6 +13,8 @@ pub struct SanPham {
     pub thuong_hieu: String,
     pub la_san_pham_chinh_weilaiya: bool,
     pub la_san_pham_chinh_elvawell: bool,
+    pub thuong_ceo: Option<i64>,
+    pub thuong_cap_tren: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -25,10 +27,13 @@ pub struct SanPhamBody {
     pub thuong_hieu: String,
     pub la_san_pham_chinh_weilaiya: bool,
     pub la_san_pham_chinh_elvawell: bool,
+    pub thuong_ceo: Option<i64>,
+    pub thuong_cap_tren: Option<i64>,
 }
 
 const LIST_SQL: &str = "SELECT id, ma_san_pham, ten_san_pham, quy_cach, thuong_hieu,
-    la_san_pham_chinh_weilaiya, la_san_pham_chinh_elvawell, created_at, updated_at
+    la_san_pham_chinh_weilaiya, la_san_pham_chinh_elvawell,
+    thuong_ceo, thuong_cap_tren, created_at, updated_at
     FROM san_pham ORDER BY thuong_hieu, ma_san_pham";
 
 fn row_to_san_pham(row: &rusqlite::Row<'_>) -> rusqlite::Result<SanPham> {
@@ -40,8 +45,10 @@ fn row_to_san_pham(row: &rusqlite::Row<'_>) -> rusqlite::Result<SanPham> {
         thuong_hieu: row.get(4)?,
         la_san_pham_chinh_weilaiya: row.get::<_, i64>(5)? != 0,
         la_san_pham_chinh_elvawell: row.get::<_, i64>(6)? != 0,
-        created_at: row.get(7)?,
-        updated_at: row.get(8)?,
+        thuong_ceo: row.get(7)?,
+        thuong_cap_tren: row.get(8)?,
+        created_at: row.get(9)?,
+        updated_at: row.get(10)?,
     })
 }
 
@@ -89,8 +96,9 @@ pub fn create_san_pham(
     let db = state.0.lock().map_err(|e| e.to_string())?;
     db.execute(
         "INSERT INTO san_pham (ma_san_pham, ten_san_pham, quy_cach, thuong_hieu,
-            la_san_pham_chinh_weilaiya, la_san_pham_chinh_elvawell)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            la_san_pham_chinh_weilaiya, la_san_pham_chinh_elvawell,
+            thuong_ceo, thuong_cap_tren)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             data.ma_san_pham.trim(),
             data.ten_san_pham.trim(),
@@ -98,6 +106,8 @@ pub fn create_san_pham(
             data.thuong_hieu,
             data.la_san_pham_chinh_weilaiya as i64,
             data.la_san_pham_chinh_elvawell as i64,
+            data.thuong_ceo,
+            data.thuong_cap_tren,
         ],
     )
     .map_err(|e| {
@@ -126,8 +136,8 @@ pub fn update_san_pham(
         .execute(
             "UPDATE san_pham SET ma_san_pham=?1, ten_san_pham=?2, quy_cach=?3,
                 thuong_hieu=?4, la_san_pham_chinh_weilaiya=?5, la_san_pham_chinh_elvawell=?6,
-                updated_at=datetime('now')
-             WHERE id=?7",
+                thuong_ceo=?7, thuong_cap_tren=?8, updated_at=datetime('now')
+             WHERE id=?9",
             params![
                 data.ma_san_pham.trim(),
                 data.ten_san_pham.trim(),
@@ -135,6 +145,8 @@ pub fn update_san_pham(
                 data.thuong_hieu,
                 data.la_san_pham_chinh_weilaiya as i64,
                 data.la_san_pham_chinh_elvawell as i64,
+                data.thuong_ceo,
+                data.thuong_cap_tren,
                 id,
             ],
         )
@@ -150,7 +162,8 @@ pub fn update_san_pham(
     }
     let mut stmt = db
         .prepare("SELECT id, ma_san_pham, ten_san_pham, quy_cach, thuong_hieu,
-            la_san_pham_chinh_weilaiya, la_san_pham_chinh_elvawell, created_at, updated_at
+            la_san_pham_chinh_weilaiya, la_san_pham_chinh_elvawell,
+            thuong_ceo, thuong_cap_tren, created_at, updated_at
             FROM san_pham WHERE id=?1")
         .map_err(|e| e.to_string())?;
     stmt.query_row([id], row_to_san_pham).map_err(|e| e.to_string())
