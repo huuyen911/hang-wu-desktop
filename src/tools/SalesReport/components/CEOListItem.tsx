@@ -1,5 +1,5 @@
 import { Box, Group, Stack, Text } from "@mantine/core";
-import { fmt, fmtAmount, fmtQty } from "../format";
+import { fmtDecimal, fmtQty } from "../format";
 import type { CEOSummary } from "../types";
 import BrandTag from "./BrandTag";
 
@@ -74,7 +74,7 @@ export default function CEOListItem({
                   c={active ? "white" : "dark"}
                   style={{ whiteSpace: "nowrap" }}
                 >
-                  {fmt.format(totalThung)} thùng
+                  {fmtDecimal(totalThung)} thùng
                 </Text>
               )}
               <Text
@@ -83,13 +83,6 @@ export default function CEOListItem({
                 style={{ whiteSpace: "nowrap" }}
               >
                 {fmtQty(ceo.totalQty)} sản phẩm
-              </Text>
-              <Text
-                size="xs"
-                c={active ? "blue.1" : "green.7"}
-                style={{ whiteSpace: "nowrap" }}
-              >
-                {fmtAmount(ceo.totalAmount)}
               </Text>
             </>
           ) : (

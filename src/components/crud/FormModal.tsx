@@ -31,6 +31,7 @@ export default function FormModal({
         </Text>
       }
       size="md"
+      centered
       closeOnClickOutside={!isSaving}
     >
       <Stack gap="sm">

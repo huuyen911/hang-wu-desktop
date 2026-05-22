@@ -251,6 +251,7 @@ export default function SessionHistory({ onOpen }: Props) {
         onClose={() => setRenameTarget(null)}
         title={<Text fw={600}>Đổi tên phiên</Text>}
         size="md"
+        centered
       >
         <Stack gap="sm">
           <TextInput

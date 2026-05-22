@@ -78,6 +78,51 @@ export default function CellDetailModal({
 
   flatLines.sort((a, b) => a.productCode.localeCompare(b.productCode));
 
+  // Gom các dòng cùng mã sản phẩm thành 1 hàng
+  type AggRow = {
+    productCode: string;
+    productName: string;
+    unit: string;
+    quyCach: number | null;
+    productBrand: string;
+    totalQty: number;
+    totalAmount: number;
+    totalThung: number | null;
+    invoices: string[];
+    dates: string[];
+    unitPrices: number[];
+  };
+  const aggMap = new Map<string, AggRow>();
+  flatLines.forEach((line) => {
+    if (!aggMap.has(line.productCode)) {
+      aggMap.set(line.productCode, {
+        productCode: line.productCode,
+        productName: line.productName,
+        unit: line.unit,
+        quyCach: line.quyCach,
+        productBrand: line.productBrand,
+        totalQty: 0,
+        totalAmount: 0,
+        totalThung: line.quyCach !== null ? 0 : null,
+        invoices: [],
+        dates: [],
+        unitPrices: [],
+      });
+    }
+    const agg = aggMap.get(line.productCode)!;
+    agg.totalQty += line.qty;
+    agg.totalAmount += line.amount;
+    if (agg.totalThung !== null && line.thung !== null)
+      agg.totalThung += line.thung;
+    if (line.invoice && !agg.invoices.includes(line.invoice))
+      agg.invoices.push(line.invoice);
+    if (line.date && !agg.dates.includes(line.date))
+      agg.dates.push(line.date);
+    if (line.unitPrice > 0 && !agg.unitPrices.includes(line.unitPrice))
+      agg.unitPrices.push(line.unitPrice);
+  });
+  const aggRows = [...aggMap.values()];
+
   const noData = flatLines.length === 0;
   // Tổng thùng lấy thẳng từ ô đã bấm (đã làm tròn xuống theo TỪNG nhóm/SP ở
   // MatrixTable). KHÔNG cộng dồn raw của mọi dòng rồi floor một lần ở đây — cộng
@@ -95,6 +140,7 @@ export default function CellDetailModal({
       opened
       onClose={onClose}
       size="70%"
+      centered
       styles={{ body: { padding: "16px" }, header: { padding: "12px 16px" } }}
       title={
         <Group gap="xs" wrap="nowrap">
@@ -135,6 +181,9 @@ export default function CellDetailModal({
         </Group>
       }
     >
+      <style>{`
+        .cdm-tbl th, .cdm-tbl td { border-right: 1px solid var(--mantine-color-gray-2); }
+      `}</style>
       {noData ? (
         <Text size="sm" c="dimmed">
           CEO này không có đơn hàng nào cho {colLabel} trong kỳ báo cáo.
@@ -148,6 +197,7 @@ export default function CellDetailModal({
           }}
         >
           <table
+            className="cdm-tbl"
             style={{
               width: "100%",
               borderCollapse: "collapse",
@@ -211,8 +261,8 @@ export default function CellDetailModal({
               </tr>
             </thead>
             <tbody>
-              {flatLines.map((line, i) => {
-                const missingQC = line.quyCach === null;
+              {aggRows.map((row, i) => {
+                const missingQC = row.quyCach === null;
                 const rowBg = missingQC
                   ? "var(--mantine-color-orange-0)"
                   : i % 2 === 1
@@ -220,7 +270,7 @@ export default function CellDetailModal({
                     : "white";
                 return (
                   <tr
-                    key={i}
+                    key={row.productCode}
                     style={{
                       background: rowBg,
                       borderBottom: "1px solid var(--mantine-color-gray-1)",
@@ -244,10 +294,10 @@ export default function CellDetailModal({
                           gap: 4,
                         }}
                       >
-                        {line.productBrand !== brand && (
-                          <BrandTag brand={line.productBrand} sansSerif />
+                        {row.productBrand !== brand && (
+                          <BrandTag brand={row.productBrand} sansSerif />
                         )}
-                        {line.productCode}
+                        {row.productCode}
                       </div>
                     </td>
                     <td
@@ -258,23 +308,21 @@ export default function CellDetailModal({
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                       }}
-                      title={line.productName}
+                      title={row.productName}
                     >
-                      {line.productName || "—"}
+                      {row.productName || "—"}
                     </td>
                     <td
                       style={{
                         padding: "5px 8px",
                         fontFamily: "monospace",
-                        fontSize: 11,
+                        fontSize: 10,
                         color: "var(--mantine-color-dark-4)",
+                        whiteSpace: "pre",
+                        lineHeight: 1.6,
                       }}
                     >
-                      {line.invoice || (
-                        <span style={{ color: "var(--mantine-color-dimmed)" }}>
-                          —
-                        </span>
-                      )}
+                      {row.invoices.length > 0 ? row.invoices.join("\n") : "—"}
                     </td>
                     <td
                       style={{
@@ -283,7 +331,7 @@ export default function CellDetailModal({
                         color: "var(--mantine-color-dimmed)",
                       }}
                     >
-                      {line.unit}
+                      {row.unit}
                     </td>
                     <td
                       style={{
@@ -292,7 +340,7 @@ export default function CellDetailModal({
                         fontWeight: 600,
                       }}
                     >
-                      {fmtQty(line.qty)}
+                      {fmtQty(row.totalQty)}
                     </td>
                     <td
                       style={{
@@ -303,7 +351,7 @@ export default function CellDetailModal({
                           : "var(--mantine-color-dimmed)",
                       }}
                     >
-                      {line.quyCach !== null ? fmt.format(line.quyCach) : "—"}
+                      {row.quyCach !== null ? fmt.format(row.quyCach) : "—"}
                     </td>
                     <td
                       style={{
@@ -315,8 +363,8 @@ export default function CellDetailModal({
                           : "var(--mantine-color-blue-8)",
                       }}
                     >
-                      {line.thung !== null ? (
-                        fmtDecimal(line.thung)
+                      {row.totalThung !== null ? (
+                        fmtDecimal(row.totalThung)
                       ) : (
                         <span
                           style={{
@@ -332,21 +380,27 @@ export default function CellDetailModal({
                       style={{
                         padding: "5px 8px",
                         textAlign: "center",
-                        whiteSpace: "nowrap",
+                        fontSize: 10,
                         color: "var(--mantine-color-dimmed)",
-                        fontSize: 11,
+                        whiteSpace: "pre",
+                        lineHeight: 1.6,
                       }}
                     >
-                      {line.date || "—"}
+                      {row.dates.length > 0 ? row.dates.join("\n") : "—"}
                     </td>
                     <td
                       style={{
                         padding: "5px 8px",
                         textAlign: "right",
+                        fontSize: 10,
                         color: "var(--mantine-color-dimmed)",
+                        whiteSpace: "pre",
+                        lineHeight: 1.6,
                       }}
                     >
-                      {fmtAmountOrDash(line.unitPrice)}
+                      {row.unitPrices.length > 0
+                        ? row.unitPrices.map((v) => fmtAmountOrDash(v)).join("\n")
+                        : "—"}
                     </td>
                     <td
                       style={{
@@ -356,7 +410,7 @@ export default function CellDetailModal({
                         fontWeight: 600,
                       }}
                     >
-                      {fmtAmount(line.amount)}
+                      {fmtAmount(row.totalAmount)}
                     </td>
                   </tr>
                 );
@@ -378,7 +432,7 @@ export default function CellDetailModal({
                     color: "var(--mantine-color-blue-8)",
                   }}
                 >
-                  Tổng ({flatLines.length} dòng)
+                  Tổng ({aggRows.length} sản phẩm)
                 </td>
                 <td />
                 <td

@@ -220,6 +220,7 @@ export default function BackupPage() {
         onClose={() => setConfirmOpen(false)}
         title={<Text fw={600}>Xác nhận phục hồi</Text>}
         size="md"
+        centered
         closeOnClickOutside={!importing}
       >
         <Text size="sm" mb="sm">

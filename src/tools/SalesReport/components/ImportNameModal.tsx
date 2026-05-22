@@ -40,6 +40,7 @@ export default function ImportNameModal({
       onClose={onClose}
       title={<Text fw={600}>Lưu phiên import</Text>}
       size="md"
+      centered
       closeOnClickOutside={!isSaving}
     >
       <Stack gap="sm">

@@ -15,6 +15,8 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
+  IconArrowDown,
+  IconArrowUp,
   IconBox,
   IconCash,
   IconFileExport,
@@ -31,7 +33,7 @@ import {
   computeCeoBonuses,
   type BonusProductInfo,
 } from "../bonus";
-import { fmt, fmtAmount, fmtQty } from "../format";
+import { fmtAmount, fmtDecimal, fmtQty } from "../format";
 import type { BrandSummary, CEOSummary } from "../types";
 import { buildMatrixExportData } from "../utils/matrixExport";
 import {
@@ -47,6 +49,8 @@ import MatrixTable from "./MatrixTable";
 import SearchInput from "./SearchInput";
 
 type ViewMode = "matrix" | "detail" | "bonus";
+type SortField = "thung" | "qty";
+type SortDirection = "asc" | "desc";
 
 interface StatTileProps {
   icon: React.ReactNode;
@@ -92,7 +96,6 @@ function StatTile({ icon, label, value, accentColor }: StatTileProps) {
 
 export interface FilterState {
   ceoFilter: string | null;
-  monthFilter: string | null;
   productSearch: string;
   invoiceSearch: string;
   importStatus: "imported" | "not-imported" | null;
@@ -100,7 +103,6 @@ export interface FilterState {
 
 export const DEFAULT_FILTER_STATE: FilterState = {
   ceoFilter: null,
-  monthFilter: null,
   productSearch: "",
   invoiceSearch: "",
   importStatus: null,
@@ -139,6 +141,17 @@ export default function BrandPanel({
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("matrix");
   const [exporting, setExporting] = useState(false);
+  const [sortField, setSortField] = useState<SortField>("thung");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  function handleSortClick(field: SortField) {
+    if (sortField === field) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  }
 
   const matchesBrand = useMemo(
     () => makeBrandMatcher(brand.brand),
@@ -149,8 +162,7 @@ export default function BrandPanel({
     brand.ceos.find((c) => matchesBrand(c.ceo))?.ceo ?? "",
   );
 
-  const { ceoFilter, monthFilter, productSearch, invoiceSearch, importStatus } =
-    filters;
+  const { ceoFilter, productSearch, invoiceSearch, importStatus } = filters;
   const debouncedProductSearch = useDebounce(productSearch, 300);
   const debouncedInvoiceSearch = useDebounce(invoiceSearch, 300);
 
@@ -183,14 +195,6 @@ export default function BrandPanel({
     [allCEOs, masterCEOCodeSetForBrand, masterCEOCodeSet],
   );
 
-  const monthOptions = useMemo(
-    () =>
-      [...new Set(allCEOs.flatMap((c) => c.months.map((m) => m.month)))]
-        .sort()
-        .map((m) => ({ value: m, label: m })),
-    [allCEOs],
-  );
-
   const search = normalizeSearch(debouncedProductSearch.trim());
   const qInvoice = normalizeSearch(debouncedInvoiceSearch.trim());
 
@@ -205,8 +209,6 @@ export default function BrandPanel({
       allCEOs
         .filter((c) => {
           if (ceoFilter && c.ceo !== ceoFilter) return false;
-          if (monthFilter && !c.months.some((m) => m.month === monthFilter))
-            return false;
           if (
             search &&
             !c.months.some((m) =>
@@ -245,7 +247,6 @@ export default function BrandPanel({
     [
       allCEOs,
       ceoFilter,
-      monthFilter,
       search,
       qInvoice,
       importStatus,
@@ -285,6 +286,20 @@ export default function BrandPanel({
   );
   const totalBonus = bonusRows.reduce((s, r) => s + r.grandTotal, 0);
 
+  const sortedVisibleCEOs = useMemo(() => {
+    return [...visibleCEOs].sort((a, b) => {
+      const aVal =
+        sortField === "thung"
+          ? calcTotalThung(a, brand.brand, quyCachMap, productBrandMap, productToGroupIdMap)
+          : a.totalQty;
+      const bVal =
+        sortField === "thung"
+          ? calcTotalThung(b, brand.brand, quyCachMap, productBrandMap, productToGroupIdMap)
+          : b.totalQty;
+      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+    });
+  }, [visibleCEOs, sortField, sortDirection, brand.brand, quyCachMap, productBrandMap, productToGroupIdMap]);
+
   const activeCEO =
     visibleCEOs.find((c) => c.ceo === selectedCEO) ?? visibleCEOs[0];
 
@@ -308,7 +323,6 @@ export default function BrandPanel({
 
   const isFiltered =
     !!ceoFilter ||
-    !!monthFilter ||
     !!productSearch.trim() ||
     !!invoiceSearch.trim() ||
     !!importStatus;
@@ -316,7 +330,6 @@ export default function BrandPanel({
   function clearFilters() {
     onFiltersChange({
       ceoFilter: null,
-      monthFilter: null,
       productSearch: "",
       invoiceSearch: "",
       importStatus: null,
@@ -414,7 +427,7 @@ export default function BrandPanel({
             <StatTile
               icon={<IconBox size={16} />}
               label="Tổng thùng"
-              value={fmt.format(totalThungFiltered)}
+              value={fmtDecimal(totalThungFiltered)}
               accentColor="var(--mantine-color-indigo-7)"
             />
           )}
@@ -515,15 +528,6 @@ export default function BrandPanel({
           clearable
           style={{ minWidth: 170 }}
         />
-        <Select
-          placeholder="Tháng"
-          data={monthOptions}
-          value={monthFilter}
-          onChange={(v) => onFiltersChange({ monthFilter: v })}
-          clearable
-          size="xs"
-          style={{ minWidth: 110 }}
-        />
         {isFiltered && (
           <Button size="xs" variant="subtle" color="red" onClick={clearFilters}>
             Xoá bộ lọc
@@ -547,7 +551,7 @@ export default function BrandPanel({
             productBrandMap={productBrandMap}
           />
         ) : viewMode === "bonus" ? (
-          <BonusTable rows={bonusRows} />
+          <BonusTable rows={bonusRows} brand={brand.brand} />
         ) : (
           <>
             {/* Left: CEO list */}
@@ -561,6 +565,42 @@ export default function BrandPanel({
                 minHeight: 0,
               }}
             >
+              <Group
+                px={22}
+                py={6}
+                gap={4}
+                align="center"
+                style={{
+                  borderBottom: "1px solid var(--mantine-color-gray-2)",
+                  flexShrink: 0,
+                  background: "var(--mantine-color-gray-0)",
+                }}
+              >
+                <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+                  Sắp xếp:
+                </Text>
+                {(
+                  [
+                    { field: "thung" as SortField, label: "Thùng" },
+                    { field: "qty" as SortField, label: "Sản phẩm" },
+                  ] as const
+                ).map(({ field, label }) => (
+                  <Button
+                    key={field}
+                    size="xs"
+                    variant={sortField === field ? "filled" : "subtle"}
+                    color="blue"
+                    rightSection={
+                      sortField === field ? (
+                        sortDirection === "asc" ? <IconArrowUp size={11} /> : <IconArrowDown size={11} />
+                      ) : undefined
+                    }
+                    onClick={() => handleSortClick(field)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </Group>
               {visibleCEOs.length === 0 ? (
                 <Center py={32}>
                   <Text size="sm" c="dimmed">
@@ -570,7 +610,7 @@ export default function BrandPanel({
               ) : (
                 <ScrollArea style={{ flex: 1 }}>
                   <Stack gap={0} p="xs">
-                    {visibleCEOs.map((c) => {
+                    {sortedVisibleCEOs.map((c) => {
                       const crossBrands = new Set(
                         c.months
                           .flatMap((m) =>
@@ -663,12 +703,6 @@ export default function BrandPanel({
                       </Group>
                       <Group gap="md" mt={2}>
                         <Text size="xs" c="dimmed">
-                          {activeCEO.months.length} tháng
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          ·
-                        </Text>
-                        <Text size="xs" c="dimmed">
                           {fmtQty(activeCEO.totalQty)} sản phẩm
                         </Text>
                         {activeTotalThung > 0 && (
@@ -677,7 +711,7 @@ export default function BrandPanel({
                               ·
                             </Text>
                             <Text size="xs" c="dimmed">
-                              {fmt.format(activeTotalThung)} thùng
+                              {fmtDecimal(activeTotalThung)} thùng
                             </Text>
                           </>
                         )}

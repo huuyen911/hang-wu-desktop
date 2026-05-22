@@ -189,6 +189,7 @@ export default function SalesRowFormModal({
         <Text fw={600}>{isEdit ? "Chỉnh sửa dòng" : "Thêm dòng mới"}</Text>
       }
       size="lg"
+      centered
     >
       <Stack gap="sm">
         <SimpleGrid cols={2} spacing="sm">

@@ -1,6 +1,7 @@
 import { brandShort } from "@/domain/constants";
 import type { NhomSanPham } from "@/master-data/NhomSanPham/types";
 import { Badge, Center, Group, Text } from "@mantine/core";
+import { IconArrowDown, IconArrowUp } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fmt } from "../format";
 import type { CEOSummary } from "../types";
@@ -63,6 +64,19 @@ export default function MatrixTable({
     return () => ro.disconnect();
   }, []);
   const [modalCell, setModalCell] = useState<ModalCellInfo | null>(null);
+  type SortKey = number | string | "__totalThung__" | "__totalQty__";
+  const [sort, setSort] = useState<{
+    key: SortKey;
+    dir: "asc" | "desc";
+  } | null>(null);
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "desc" };
+      if (prev.dir === "desc") return { key, dir: "asc" };
+      return null;
+    });
+  }
 
   // Toàn bộ phép dẫn xuất nặng (dò cột, gom thùng theo CEO/nhóm, cộng tổng cột)
   // được memo hóa — chỉ tính lại khi dữ liệu đầu vào đổi, không chạy mỗi render.
@@ -206,6 +220,25 @@ export default function MatrixTable({
       productBrandMap,
     ]);
 
+  const sortedCeoData = useMemo(() => {
+    if (!sort) return ceoData;
+    const { key, dir } = sort;
+    return [...ceoData].sort((a, b) => {
+      let va: number, vb: number;
+      if (key === "__totalThung__") {
+        va = a.totalThung;
+        vb = b.totalThung;
+      } else if (key === "__totalQty__") {
+        va = a.ceo.totalQty;
+        vb = b.ceo.totalQty;
+      } else {
+        va = a.colThungMap.get(key) ?? 0;
+        vb = b.colThungMap.get(key) ?? 0;
+      }
+      return dir === "desc" ? vb - va : va - vb;
+    });
+  }, [ceoData, sort]);
+
   if (ceos.length === 0) {
     return (
       <Center style={{ flex: 1 }}>
@@ -297,6 +330,9 @@ export default function MatrixTable({
         .sr-matrix td.sr-cell{transition:background 0.1s, box-shadow 0.1s}
         .sr-matrix td.sr-cell-clickable:hover{background:var(--mantine-color-blue-2)!important;box-shadow:inset 0 0 0 1px var(--mantine-color-blue-4)}
         .sr-matrix td.sr-cell-clickable:focus-visible{outline:2px solid var(--mantine-color-blue-5);outline-offset:-2px}
+        .sr-matrix th.sr-th-sortable{cursor:pointer;user-select:none}
+        .sr-matrix th.sr-th-sortable:hover{background:var(--mantine-color-gray-2)!important}
+        .sr-matrix th.sr-th-sortable.sr-th-active{background:var(--mantine-color-blue-0)!important;color:var(--mantine-color-blue-8)}
       `}</style>
       <table
         className="sr-matrix"
@@ -339,82 +375,93 @@ export default function MatrixTable({
             >
               Tên CEO
             </th>
-            {columns.map((col) => (
-              <th
-                key={String(col.key)}
-                scope="col"
-                title={col.subName ? `${col.name} — ${col.subName}` : col.name}
-                style={{
-                  ...thTop,
-                  width: W_GRP,
-                  textAlign: "right",
-                  borderRight: "1px solid var(--mantine-color-gray-2)",
-                }}
-              >
-                <div
+            {columns.map((col) => {
+              const isActive = sort?.key === col.key;
+              return (
+                <th
+                  key={String(col.key)}
+                  scope="col"
+                  className={`sr-th-sortable${isActive ? " sr-th-active" : ""}`}
+                  title={col.subName ? `${col.name} — ${col.subName}` : col.name}
+                  onClick={() => toggleSort(col.key)}
                   style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    maxWidth: W_GRP - 16,
+                    ...thTop,
+                    width: W_GRP,
+                    textAlign: "right",
+                    borderRight: "1px solid var(--mantine-color-gray-2)",
                   }}
                 >
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
                       overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      maxWidth: W_GRP - 16,
                     }}
                   >
-                    {col.crossBrand && (
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          fontSize: 9,
-                          fontWeight: 700,
-                          color: "var(--mantine-color-orange-7)",
-                          background: "var(--mantine-color-orange-1)",
-                          border: "1px solid var(--mantine-color-orange-3)",
-                          borderRadius: 3,
-                          padding: "0 4px",
-                          letterSpacing: "0.04em",
-                        }}
-                      >
-                        {brandShort(col.crossBrand)}
-                      </span>
-                    )}
-                    <span
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        color:
-                          col.isUngrouped && !col.inMaster
-                            ? "var(--mantine-color-red-6)"
-                            : undefined,
-                      }}
-                    >
-                      {col.name}
-                    </span>
-                  </div>
-                  {col.subName && (
                     <div
                       style={{
-                        fontWeight: 400,
-                        fontSize: 10,
-                        color: "var(--mantine-color-dimmed)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
                         overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        justifyContent: "flex-end",
                       }}
                     >
-                      {col.subName}
+                      {col.crossBrand && (
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            fontSize: 9,
+                            fontWeight: 700,
+                            color: "var(--mantine-color-orange-7)",
+                            background: "var(--mantine-color-orange-1)",
+                            border: "1px solid var(--mantine-color-orange-3)",
+                            borderRadius: 3,
+                            padding: "0 4px",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {brandShort(col.crossBrand)}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          color:
+                            col.isUngrouped && !col.inMaster
+                              ? "var(--mantine-color-red-6)"
+                              : undefined,
+                        }}
+                      >
+                        {col.name}
+                      </span>
+                      {isActive && (
+                        sort?.dir === "desc" ? <IconArrowDown size={11} style={{ flexShrink: 0 }} /> : <IconArrowUp size={11} style={{ flexShrink: 0 }} />
+                      )}
                     </div>
-                  )}
-                </div>
-              </th>
-            ))}
+                    {col.subName && (
+                      <div
+                        style={{
+                          fontWeight: 400,
+                          fontSize: 10,
+                          color: "var(--mantine-color-dimmed)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {col.subName}
+                      </div>
+                    )}
+                  </div>
+                </th>
+              );
+            })}
             <th
               scope="col"
+              className={`sr-th-sortable${sort?.key === "__totalThung__" ? " sr-th-active" : ""}`}
+              onClick={() => toggleSort("__totalThung__")}
               style={{
                 ...thCornerR,
                 width: W_TONG,
@@ -424,10 +471,17 @@ export default function MatrixTable({
                 background: BG_TONG_COL,
               }}
             >
-              Tổng thùng
+              Tổng thùng{" "}
+              {sort?.key === "__totalThung__" && (
+                <span style={{ display: "inline-flex", verticalAlign: "middle" }}>
+                  {sort.dir === "desc" ? <IconArrowDown size={11} /> : <IconArrowUp size={11} />}
+                </span>
+              )}
             </th>
             <th
               scope="col"
+              className={`sr-th-sortable${sort?.key === "__totalQty__" ? " sr-th-active" : ""}`}
+              onClick={() => toggleSort("__totalQty__")}
               style={{
                 ...thCornerR2,
                 width: W_QTY,
@@ -435,7 +489,12 @@ export default function MatrixTable({
                 background: BG_TONG_COL,
               }}
             >
-              Tổng sản phẩm
+              Tổng sản phẩm{" "}
+              {sort?.key === "__totalQty__" && (
+                <span style={{ display: "inline-flex", verticalAlign: "middle" }}>
+                  {sort.dir === "desc" ? <IconArrowDown size={11} /> : <IconArrowUp size={11} />}
+                </span>
+              )}
             </th>
           </tr>
 
@@ -513,7 +572,7 @@ export default function MatrixTable({
           </tr>
         </thead>
         <tbody>
-          {ceoData.map(
+          {sortedCeoData.map(
             (
               { ceo, colThungMap, colProductsMap, totalThung, crossBrands },
               idx,

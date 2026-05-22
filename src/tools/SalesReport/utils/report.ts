@@ -71,7 +71,7 @@ export function calcTotalThung(
   });
   let total = 0;
   keyRawMap.forEach((v) => {
-    total += Math.floor(v);
+    total += v;
   });
   return total;
 }

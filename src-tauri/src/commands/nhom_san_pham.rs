@@ -57,6 +57,89 @@ fn validate(body: &NhomSanPhamBody) -> Option<String> {
     None
 }
 
+fn check_san_pham_brand(
+    db: &rusqlite::Connection,
+    ids: &[i64],
+    expected_brand: &str,
+) -> Result<(), String> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT ma_san_pham, ten_san_pham FROM san_pham WHERE id IN ({}) AND thuong_hieu != ?",
+        placeholders
+    );
+    let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = ids
+        .iter()
+        .map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)
+        .collect();
+    params.push(Box::new(expected_brand.to_string()));
+    let wrong: Vec<String> = stmt
+        .query_map(rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())), |row| {
+            Ok(format!(
+                "{} - {}",
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    if !wrong.is_empty() {
+        return Err(format!(
+            "Sản phẩm sau không thuộc thương hiệu {}: {}",
+            expected_brand,
+            wrong.join(", ")
+        ));
+    }
+    Ok(())
+}
+
+fn check_san_pham_unique_group(
+    db: &rusqlite::Connection,
+    ids: &[i64],
+    exclude_nhom_id: Option<i64>,
+) -> Result<(), String> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let exclude_cond = match exclude_nhom_id {
+        Some(eid) => format!("AND j.nhom_san_pham_id != {}", eid),
+        None => String::new(),
+    };
+    let sql = format!(
+        "SELECT sp.ma_san_pham, sp.ten_san_pham, n.ten_nhom
+         FROM nhom_san_pham_san_pham j
+         JOIN san_pham sp ON sp.id = j.san_pham_id
+         JOIN nhom_san_pham n ON n.id = j.nhom_san_pham_id
+         WHERE j.san_pham_id IN ({}) {}",
+        placeholders, exclude_cond
+    );
+    let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
+    let conflicts: Vec<String> = stmt
+        .query_map(rusqlite::params_from_iter(ids), |row| {
+            Ok(format!(
+                "{} - {} (nhóm \"{}\")",
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    if !conflicts.is_empty() {
+        return Err(format!(
+            "Sản phẩm sau đã thuộc nhóm khác: {}",
+            conflicts.join(", ")
+        ));
+    }
+    Ok(())
+}
+
 fn sync_members(
     db: &rusqlite::Connection,
     nhom_id: i64,
@@ -115,6 +198,8 @@ pub fn create_nhom_san_pham(
         return Err(err);
     }
     let db = state.0.lock().map_err(|e| e.to_string())?;
+    check_san_pham_brand(&db, &data.san_pham_ids, &data.thuong_hieu)?;
+    check_san_pham_unique_group(&db, &data.san_pham_ids, None)?;
     db.execute(
         "INSERT INTO nhom_san_pham (ten_nhom, thuong_hieu, thuong_ceo, thuong_cap_tren)
          VALUES (?1, ?2, ?3, ?4)",
@@ -147,6 +232,8 @@ pub fn update_nhom_san_pham(
         return Err(err);
     }
     let db = state.0.lock().map_err(|e| e.to_string())?;
+    check_san_pham_brand(&db, &data.san_pham_ids, &data.thuong_hieu)?;
+    check_san_pham_unique_group(&db, &data.san_pham_ids, Some(id))?;
     let n = db
         .execute(
             "UPDATE nhom_san_pham SET ten_nhom=?1, thuong_hieu=?2, thuong_ceo=?3,

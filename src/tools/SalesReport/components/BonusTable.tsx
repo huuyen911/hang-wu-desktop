@@ -1,11 +1,15 @@
 import { Badge, Center, Group, Modal, Table, Text } from "@mantine/core";
-import { useState } from "react";
+import { IconArrowDown, IconArrowUp } from "@tabler/icons-react";
+import { useMemo, useState } from "react";
 import { mantineTableProps } from "@/styles/table";
 import type { CeoBonusRow } from "../bonus";
+import { brandShort } from "@/domain/constants";
 import { fmt, fmtAmount } from "../format";
+import BrandTag from "./BrandTag";
 
 interface Props {
   rows: CeoBonusRow[];
+  brand: string;
 }
 
 const W_STT = 48;
@@ -15,8 +19,33 @@ const W_THUNG = 95;
 const W_MONEY = 150;
 
 // Bảng "Tính thưởng" — mỗi dòng một CEO, bấm vào dòng để mở modal chi tiết.
-export default function BonusTable({ rows }: Props) {
+export default function BonusTable({ rows, brand }: Props) {
   const [selected, setSelected] = useState<CeoBonusRow | null>(null);
+  type SortKey =
+    | "ownThung"
+    | "ownTotal"
+    | "receivedThung"
+    | "receivedTotal"
+    | "grandTotal";
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "desc" };
+      if (prev.dir === "desc") return { key, dir: "asc" };
+      return null;
+    });
+  }
+
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+    const { key, dir } = sort;
+    return [...rows].sort((a, b) => {
+      const va = a[key];
+      const vb = b[key];
+      return dir === "desc" ? vb - va : va - vb;
+    });
+  }, [rows, sort]);
 
   if (rows.length === 0) {
     return (
@@ -53,9 +82,23 @@ export default function BonusTable({ rows }: Props) {
     fontSize: 12,
   };
 
+  const sortArrow = (key: SortKey) =>
+    sort?.key === key ? (
+      <span style={{ display: "inline-flex", verticalAlign: "middle", marginLeft: 2 }}>
+        {sort.dir === "desc" ? <IconArrowDown size={11} /> : <IconArrowUp size={11} />}
+      </span>
+    ) : null;
+
   return (
     <div style={{ flex: 1, overflow: "auto", minWidth: 0, minHeight: 0 }}>
+      <style>{`
+        .bonus-th-sortable{cursor:pointer;user-select:none}
+        .bonus-th-sortable:hover{background:var(--mantine-color-gray-2)!important}
+        .bonus-th-sortable.bonus-th-active{background:var(--mantine-color-blue-0)!important;color:var(--mantine-color-blue-8)}
+        .bonus-tbl th,.bonus-tbl td{border-right:1px solid var(--mantine-color-gray-2)}
+      `}</style>
       <table
+        className="bonus-tbl"
         style={{
           borderCollapse: "separate",
           borderSpacing: 0,
@@ -69,20 +112,40 @@ export default function BonusTable({ rows }: Props) {
             <th style={{ ...thBase, width: W_STT, textAlign: "center" }}>STT</th>
             <th style={{ ...thBase, width: W_MA }}>Mã CEO</th>
             <th style={{ ...thBase, width: W_TEN }}>Tên CEO</th>
-            <th style={{ ...thBase, width: W_THUNG, textAlign: "right" }}>
-              Thùng bản thân
+            <th
+              className={`bonus-th-sortable${sort?.key === "ownThung" ? " bonus-th-active" : ""}`}
+              onClick={() => toggleSort("ownThung")}
+              style={{ ...thBase, width: W_THUNG, textAlign: "right" }}
+            >
+              Thùng bản thân {sortArrow("ownThung")}
             </th>
-            <th style={{ ...thBase, width: W_MONEY, textAlign: "right" }}>
-              Thưởng bản thân
+            <th
+              className={`bonus-th-sortable${sort?.key === "ownTotal" ? " bonus-th-active" : ""}`}
+              onClick={() => toggleSort("ownTotal")}
+              style={{ ...thBase, width: W_MONEY, textAlign: "right" }}
+            >
+              Thưởng bản thân {sortArrow("ownTotal")}
             </th>
-            <th style={{ ...thBase, width: W_THUNG, textAlign: "right" }}>
-              Thùng từ cấp dưới
+            <th
+              className={`bonus-th-sortable${sort?.key === "receivedThung" ? " bonus-th-active" : ""}`}
+              onClick={() => toggleSort("receivedThung")}
+              style={{ ...thBase, width: W_THUNG, textAlign: "right" }}
+            >
+              Thùng từ cấp dưới {sortArrow("receivedThung")}
             </th>
-            <th style={{ ...thBase, width: W_MONEY, textAlign: "right" }}>
-              Thưởng từ cấp dưới
+            <th
+              className={`bonus-th-sortable${sort?.key === "receivedTotal" ? " bonus-th-active" : ""}`}
+              onClick={() => toggleSort("receivedTotal")}
+              style={{ ...thBase, width: W_MONEY, textAlign: "right" }}
+            >
+              Thưởng từ cấp dưới {sortArrow("receivedTotal")}
             </th>
-            <th style={{ ...thBase, width: W_MONEY, textAlign: "right" }}>
-              Tổng thưởng
+            <th
+              className={`bonus-th-sortable${sort?.key === "grandTotal" ? " bonus-th-active" : ""}`}
+              onClick={() => toggleSort("grandTotal")}
+              style={{ ...thBase, width: W_MONEY, textAlign: "right" }}
+            >
+              Tổng thưởng {sortArrow("grandTotal")}
             </th>
           </tr>
           <tr>
@@ -129,7 +192,7 @@ export default function BonusTable({ rows }: Props) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, idx) => {
+          {sortedRows.map((r, idx) => {
             const rowBg =
               idx % 2 === 0 ? "white" : "var(--mantine-color-gray-0)";
             const hasDetail = r.details.length > 0 || r.received.length > 0;
@@ -157,23 +220,32 @@ export default function BonusTable({ rows }: Props) {
                     ...tdBase,
                     fontFamily: "monospace",
                     fontWeight: 700,
-                    color: r.inMaster
-                      ? undefined
-                      : "var(--mantine-color-red-6)",
+                    color: r.inMaster ? undefined : "var(--mantine-color-red-6)",
                   }}
                 >
                   {r.ceo}
                 </td>
                 <td
-                  style={{
-                    ...tdBase,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
+                  style={{ ...tdBase, overflow: "hidden", padding: "4px 8px" }}
                   title={r.ceoName}
                 >
-                  {r.ceoName || "—"}
+                  <Group gap={4} wrap="nowrap" style={{ overflow: "hidden" }}>
+                    <Text size="xs" truncate style={{ flex: 1 }}>
+                      {r.ceoName || "—"}
+                    </Text>
+                    {[...r.crossBrands].map((cb) => (
+                      <Badge
+                        key={cb}
+                        size="xs"
+                        variant="light"
+                        color="orange"
+                        radius="sm"
+                        style={{ flexShrink: 0, fontSize: 9 }}
+                      >
+                        {brandShort(cb)}
+                      </Badge>
+                    ))}
+                  </Group>
                 </td>
                 <td
                   style={{
@@ -241,6 +313,7 @@ export default function BonusTable({ rows }: Props) {
         opened={selected != null}
         onClose={() => setSelected(null)}
         size="xl"
+        centered
         title={
           selected && (
             <Group gap={8} wrap="nowrap">
@@ -255,7 +328,7 @@ export default function BonusTable({ rows }: Props) {
           )
         }
       >
-        {selected && <BonusDetail row={selected} />}
+        {selected && <BonusDetail row={selected} currentBrand={brand} />}
       </Modal>
     </div>
   );
@@ -269,7 +342,7 @@ const totalHeadStyle: React.CSSProperties = {
   fontWeight: 700,
 };
 
-function BonusDetail({ row }: { row: CeoBonusRow }) {
+function BonusDetail({ row, currentBrand }: { row: CeoBonusRow; currentBrand: string }) {
   return (
     <Group align="flex-start" gap="xl" wrap="wrap">
       {/* Thưởng bản thân theo nhóm / SP */}
@@ -304,11 +377,12 @@ function BonusDetail({ row }: { row: CeoBonusRow }) {
                       >
                         {d.isGroup ? "Nhóm" : "SP"}
                       </Badge>
-                      <Text size="xs" fw={500} truncate maw={220} title={d.label}>
+                      {d.brand !== currentBrand && <BrandTag brand={d.brand} />}
+                      <Text size="xs" fw={500} truncate maw={200} title={d.label}>
                         {d.label}
                       </Text>
                       {d.subLabel && (
-                        <Text size="xs" c="dimmed" truncate maw={160}>
+                        <Text size="xs" c="dimmed" truncate maw={140}>
                           {d.subLabel}
                         </Text>
                       )}
@@ -379,11 +453,12 @@ function BonusDetail({ row }: { row: CeoBonusRow }) {
                       >
                         {c.isGroup ? "Nhóm" : "SP"}
                       </Badge>
-                      <Text size="xs" fw={500} truncate maw={200} title={c.label}>
+                      {c.brand !== currentBrand && <BrandTag brand={c.brand} />}
+                      <Text size="xs" fw={500} truncate maw={180} title={c.label}>
                         {c.label}
                       </Text>
                       {c.subLabel && (
-                        <Text size="xs" c="dimmed" truncate maw={140}>
+                        <Text size="xs" c="dimmed" truncate maw={120}>
                           {c.subLabel}
                         </Text>
                       )}

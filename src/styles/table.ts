@@ -41,6 +41,7 @@ export const mantineTableProps = {
   withTableBorder: true,
   withColumnBorders: true,
   highlightOnHover: true,
+  striped: true,
   verticalSpacing: 6,
   horizontalSpacing: 8,
   fz: "xs",

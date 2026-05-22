@@ -289,6 +289,7 @@ export default function DataView({ sessionName, onReset }: Props) {
           </Group>
         }
         size="md"
+        centered
       >
         <Stack gap="md">
           <Text size="sm">
@@ -342,6 +343,7 @@ export default function DataView({ sessionName, onReset }: Props) {
           </Group>
         }
         size="md"
+        centered
       >
         <Stack gap="md">
           {isLocked && (

@@ -249,7 +249,9 @@ export default function SalesRowsTable() {
         </Center>
       ) : (
         <Box style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+          <style>{`.srt-tbl th,.srt-tbl td{border-right:1px solid var(--mantine-color-gray-2)}`}</style>
           <table
+            className="srt-tbl"
             style={{
               width: "100%",
               borderCollapse: "collapse",

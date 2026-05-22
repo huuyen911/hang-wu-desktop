@@ -157,6 +157,12 @@ pub fn create_sales_session(
     state: State<DbState>,
     data: CreateSessionBody,
 ) -> Result<SalesSessionDetail, String> {
+    if data.ten.trim().is_empty() {
+        return Err("Tên phiên không được để trống".into());
+    }
+    if data.file_name.trim().is_empty() {
+        return Err("Tên file không được để trống".into());
+    }
     let row_count = data.rows.len() as i64;
     let data_json = serde_json::to_string(&data.rows).map_err(|e| e.to_string())?;
     let db = state.0.lock().map_err(|e| e.to_string())?;
@@ -203,6 +209,9 @@ pub fn update_sales_session(
         return Err("Phiên đã chốt — hãy hủy chốt trước khi sửa".into());
     }
     if let Some(ten) = &data.ten {
+        if ten.trim().is_empty() {
+            return Err("Tên phiên không được để trống".into());
+        }
         db.execute(
             "UPDATE sales_session SET ten=?1, updated_at=datetime('now','localtime') WHERE id=?2",
             params![ten.trim(), id],

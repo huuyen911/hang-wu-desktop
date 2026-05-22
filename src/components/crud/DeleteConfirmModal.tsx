@@ -27,6 +27,7 @@ export default function DeleteConfirmModal({
       onClose={onClose}
       title={<Text fw={600}>Xác nhận xóa</Text>}
       size="sm"
+      centered
       closeOnClickOutside={!isDeleting}
     >
       <Text size="sm" mb="md">

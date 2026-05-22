@@ -17,6 +17,8 @@ export interface BonusColumnDetail {
   /** Tên SP (chỉ cho SP lẻ). */
   subLabel?: string;
   isGroup: boolean;
+  /** Thương hiệu thực của nhóm / SP (khác brand hiện tại → cross-brand). */
+  brand: string;
   thung: number;
   /** Thưởng / thùng cho chính CEO. */
   thuongCeo: number;
@@ -41,6 +43,8 @@ export interface ReceivedContribution {
   /** Tên SP (chỉ cho SP lẻ). */
   subLabel?: string;
   isGroup: boolean;
+  /** Thương hiệu thực của nhóm / SP (khác brand hiện tại → cross-brand). */
+  brand: string;
   thung: number;
   /** Thưởng cấp trên / thùng. */
   thuongCapTren: number;
@@ -63,6 +67,8 @@ export interface CeoBonusRow {
   receivedTotal: number;
   /** ownTotal + receivedTotal. */
   grandTotal: number;
+  /** Các thương hiệu khác brand hiện tại mà CEO này có nhập hàng. */
+  crossBrands: Set<string>;
   details: BonusColumnDetail[];
   received: ReceivedContribution[];
 }
@@ -153,18 +159,21 @@ export function computeCeoBonuses(
       let label = "";
       let subLabel: string | undefined;
       let isGroup = false;
+      let itemBrand = brand;
       if (typeof key === "number") {
         const nhom = nhomById.get(key);
         thuongCeo = nhom?.thuong_ceo ?? 0;
         thuongCapTren = nhom?.thuong_cap_tren ?? 0;
         label = nhom?.ten_nhom ?? `Nhóm #${key}`;
         isGroup = true;
+        itemBrand = nhom?.thuong_hieu ?? brand;
       } else {
         const info = productBonusByCode.get(key);
         thuongCeo = info?.thuongCeo ?? 0;
         thuongCapTren = info?.thuongCapTren ?? 0;
         label = key;
         subLabel = nameByCode.get(key) || undefined;
+        itemBrand = productBrandMap.get(key) ?? brand;
       }
       const ownAmount = thung * thuongCeo;
       const superiorAmount = thung * thuongCapTren;
@@ -175,6 +184,7 @@ export function computeCeoBonuses(
         label,
         subLabel,
         isGroup,
+        brand: itemBrand,
         thung,
         thuongCeo,
         thuongCapTren,
@@ -189,16 +199,15 @@ export function computeCeoBonuses(
     return { ceo, details, ownTotal, superiorTotal };
   });
 
-  partials.forEach(({ ceo, details, superiorTotal }) => {
-    if (superiorTotal <= 0) return;
+  partials.forEach(({ ceo, details }) => {
+    if (details.length === 0) return;
     const parentId = ceoByCode.get(ceo.ceo)?.ceo_cap_tren_id ?? null;
     if (parentId == null) return;
     const parent = ceoById.get(parentId);
     if (!parent) return;
     const list = receivedByParentCode.get(parent.ma_ceo) ?? [];
-    // Tách theo từng nhóm / SP lẻ của cấp dưới (chỉ dòng có thưởng cấp trên).
+    // Tách theo từng nhóm / SP lẻ của cấp dưới — kể cả khi thưởng = 0 để đếm thùng đúng.
     details.forEach((d) => {
-      if (d.superiorAmount <= 0) return;
       list.push({
         fromCeo: ceo.ceo,
         fromName: ceo.ceoName,
@@ -206,6 +215,7 @@ export function computeCeoBonuses(
         label: d.label,
         subLabel: d.subLabel,
         isGroup: d.isGroup,
+        brand: d.brand,
         thung: d.thung,
         thuongCapTren: d.thuongCapTren,
         superiorAmount: d.superiorAmount,
@@ -226,6 +236,9 @@ export function computeCeoBonuses(
     const receivedTotal = received.reduce((s, r) => s + r.superiorAmount, 0);
     const ownThung = details.reduce((s, d) => s + d.thung, 0);
     const receivedThung = received.reduce((s, r) => s + r.thung, 0);
+    const crossBrands = new Set(
+      details.filter((d) => d.brand !== brand).map((d) => d.brand),
+    );
     return {
       ceo: ceo.ceo,
       ceoName: ceo.ceoName,
@@ -235,6 +248,7 @@ export function computeCeoBonuses(
       ownTotal,
       receivedTotal,
       grandTotal: ownTotal + receivedTotal,
+      crossBrands,
       details,
       received,
     };
