@@ -79,7 +79,11 @@ export default function CellDetailModal({
   flatLines.sort((a, b) => a.productCode.localeCompare(b.productCode));
 
   const noData = flatLines.length === 0;
-  const totalThungCalc = flatLines.reduce((s, l) => s + (l.thung ?? 0), 0);
+  // Tổng thùng lấy thẳng từ ô đã bấm (đã làm tròn xuống theo TỪNG nhóm/SP ở
+  // MatrixTable). KHÔNG cộng dồn raw của mọi dòng rồi floor một lần ở đây — cộng
+  // các phần thùng lẻ của nhiều nhóm/SP rồi mới floor sẽ ra số lớn hơn và lệch
+  // với giá trị hiển thị trên ma trận.
+  const totalThung = info.thung;
   const totalQty = flatLines.reduce((s, l) => s + l.qty, 0);
   const totalAmount = flatLines.reduce((s, l) => s + l.amount, 0);
   const colLabel =
@@ -394,9 +398,7 @@ export default function CellDetailModal({
                     color: "var(--mantine-color-blue-9)",
                   }}
                 >
-                  {totalThungCalc > 0
-                    ? fmt.format(Math.floor(totalThungCalc))
-                    : "—"}
+                  {totalThung && totalThung > 0 ? fmt.format(totalThung) : "—"}
                 </td>
                 <td />
                 <td />

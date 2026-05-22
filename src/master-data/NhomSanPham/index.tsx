@@ -14,6 +14,7 @@ import {
   Button,
   Group,
   MultiSelect,
+  NumberInput,
   Select,
   Table,
   Text,
@@ -31,6 +32,8 @@ const FILTER_W = 250;
 const EMPTY_FORM: NhomSanPhamFormValues = {
   ten_nhom: "",
   thuong_hieu: "",
+  thuong_ceo: "",
+  thuong_cap_tren: "",
   san_pham_ids: [],
 };
 
@@ -53,11 +56,16 @@ export default function NhomSanPhamPage() {
     toForm: (item) => ({
       ten_nhom: item.ten_nhom,
       thuong_hieu: item.thuong_hieu,
+      thuong_ceo: item.thuong_ceo ?? "",
+      thuong_cap_tren: item.thuong_cap_tren ?? "",
       san_pham_ids: item.san_pham_ids.map(String),
     }),
     toPayload: (form) => ({
       ten_nhom: form.ten_nhom,
       thuong_hieu: form.thuong_hieu as ThuongHieu,
+      thuong_ceo: form.thuong_ceo === "" ? null : Number(form.thuong_ceo),
+      thuong_cap_tren:
+        form.thuong_cap_tren === "" ? null : Number(form.thuong_cap_tren),
       san_pham_ids: form.san_pham_ids.map(Number),
     }),
     validate,
@@ -145,85 +153,112 @@ export default function NhomSanPhamPage() {
     setFilterThuongHieu(null);
   }
 
-  const table = (
-    <Table {...mantineTableProps}>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th scope="col">Tên nhóm sản phẩm</Table.Th>
-          <Table.Th scope="col" style={{ width: 120 }}>
-            Thương hiệu
-          </Table.Th>
-          <Table.Th scope="col">Sản phẩm</Table.Th>
-          <Table.Th scope="col" style={{ textAlign: "center", width: 100 }}>
-            Thao tác
-          </Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {finalFiltered.map((item) => (
-          <Table.Tr key={item.id}>
-            <Table.Td>
-              <Text size="xs" fw={500}>
-                {item.ten_nhom}
-              </Text>
-            </Table.Td>
-            <Table.Td>
-              <Badge
-                color={brandColor(item.thuong_hieu)}
-                variant="light"
-                size="sm"
-              >
-                {item.thuong_hieu}
-              </Badge>
-            </Table.Td>
-            <Table.Td>
-              {item.san_pham_ids.length === 0 ? (
-                <Text size="xs" c="dimmed">
-                  Chưa có sản phẩm
-                </Text>
-              ) : (
-                item.san_pham_ids.map((spId) => {
-                  const sp = sanPhamMap.get(spId);
-                  return (
-                    <Text key={spId} size="xs">
-                      {sp
-                        ? `• ${sp.ma_san_pham} - ${sp.ten_san_pham}`
-                        : `• #${spId}`}
-                    </Text>
-                  );
-                })
-              )}
-            </Table.Td>
-            <Table.Td style={{ textAlign: "center" }}>
-              <Group gap={6} justify="center" wrap="nowrap">
-                <Tooltip label="Sửa" withArrow>
-                  <ActionIcon
-                    variant="light"
-                    color="blue"
-                    size="sm"
-                    onClick={() => c.openEdit(item)}
-                    aria-label={`Sửa nhóm ${item.ten_nhom}`}
-                  >
-                    <IconPencil size={14} />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Xóa" withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    size="sm"
-                    onClick={() => c.setDeleteTarget(item)}
-                    aria-label={`Xoá nhóm ${item.ten_nhom}`}
-                  >
-                    <IconTrash size={14} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            </Table.Td>
+  // Memo hoá bảng: state form ở useCrudResource nằm cấp trang, nên mỗi lần gõ
+  // trong FormModal cả trang re-render. Giữ nguyên element này theo dữ liệu
+  // hiển thị để React bỏ qua reconcile bảng — tránh giật khi nhập liệu.
+  // openEdit/setDeleteTarget ổn định về hành vi nên không đưa vào deps.
+  const table = useMemo(
+    () => (
+      <Table {...mantineTableProps}>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th scope="col">Tên nhóm sản phẩm</Table.Th>
+            <Table.Th scope="col" style={{ width: 120 }}>
+              Thương hiệu
+            </Table.Th>
+            <Table.Th scope="col">Sản phẩm</Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "right", width: 130 }}>
+              Thưởng CEO
+            </Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "right", width: 130 }}>
+              Thưởng cấp trên
+            </Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "center", width: 100 }}>
+              Thao tác
+            </Table.Th>
           </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+        </Table.Thead>
+        <Table.Tbody>
+          {finalFiltered.map((item) => (
+            <Table.Tr key={item.id}>
+              <Table.Td>
+                <Text size="xs" fw={500}>
+                  {item.ten_nhom}
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Badge
+                  color={brandColor(item.thuong_hieu)}
+                  variant="light"
+                  size="sm"
+                >
+                  {item.thuong_hieu}
+                </Badge>
+              </Table.Td>
+              <Table.Td>
+                {item.san_pham_ids.length === 0 ? (
+                  <Text size="xs" c="dimmed">
+                    Chưa có sản phẩm
+                  </Text>
+                ) : (
+                  item.san_pham_ids.map((spId) => {
+                    const sp = sanPhamMap.get(spId);
+                    return (
+                      <Text key={spId} size="xs">
+                        {sp
+                          ? `• ${sp.ma_san_pham} - ${sp.ten_san_pham}`
+                          : `• #${spId}`}
+                      </Text>
+                    );
+                  })
+                )}
+              </Table.Td>
+              <Table.Td style={{ textAlign: "right" }}>
+                <Text size="xs">
+                  {item.thuong_ceo != null
+                    ? item.thuong_ceo.toLocaleString("vi-VN")
+                    : "—"}
+                </Text>
+              </Table.Td>
+              <Table.Td style={{ textAlign: "right" }}>
+                <Text size="xs">
+                  {item.thuong_cap_tren != null
+                    ? item.thuong_cap_tren.toLocaleString("vi-VN")
+                    : "—"}
+                </Text>
+              </Table.Td>
+              <Table.Td style={{ textAlign: "center" }}>
+                <Group gap={6} justify="center" wrap="nowrap">
+                  <Tooltip label="Sửa" withArrow>
+                    <ActionIcon
+                      variant="light"
+                      color="blue"
+                      size="sm"
+                      onClick={() => c.openEdit(item)}
+                      aria-label={`Sửa nhóm ${item.ten_nhom}`}
+                    >
+                      <IconPencil size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Xóa" withArrow>
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      size="sm"
+                      onClick={() => c.setDeleteTarget(item)}
+                      aria-label={`Xoá nhóm ${item.ten_nhom}`}
+                    >
+                      <IconTrash size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    ),
+    [finalFiltered, sanPhamMap],
   );
 
   const extraFilters = (
@@ -345,6 +380,30 @@ export default function NhomSanPhamPage() {
             }))
           }
           error={c.errors.thuong_hieu}
+        />
+        <NumberInput
+          label="Thưởng CEO"
+          placeholder="Nhập số tiền thưởng CEO"
+          min={0}
+          allowDecimal={false}
+          thousandSeparator="."
+          decimalSeparator=","
+          value={c.form.thuong_ceo}
+          onChange={(val) =>
+            setForm((f) => ({ ...f, thuong_ceo: val as number | "" }))
+          }
+        />
+        <NumberInput
+          label="Thưởng cấp trên"
+          placeholder="Nhập số tiền thưởng cấp trên"
+          min={0}
+          allowDecimal={false}
+          thousandSeparator="."
+          decimalSeparator=","
+          value={c.form.thuong_cap_tren}
+          onChange={(val) =>
+            setForm((f) => ({ ...f, thuong_cap_tren: val as number | "" }))
+          }
         />
         <MultiSelect
           label="Sản phẩm"

@@ -48,6 +48,16 @@ function validate(
   return errors;
 }
 
+/** Icon ✓/✗ cho cột "sản phẩm chính". Thuần (chỉ phụ thuộc tham số) nên đặt
+ * ngoài component để không tạo lại mỗi render — giữ deps của useMemo bảng gọn. */
+function mainFlag(on: boolean) {
+  return on ? (
+    <IconCheck size={18} color="green" stroke={2.5} />
+  ) : (
+    <IconX size={18} color="red" stroke={2.5} />
+  );
+}
+
 export default function SanPhamPage() {
   const c = useCrudResource<SanPham, SanPhamFormValues>({
     resource: RESOURCES.sanPham,
@@ -93,115 +103,115 @@ export default function SanPhamPage() {
 
   const setForm = c.setForm;
 
-  const mainFlag = (on: boolean) =>
-    on ? (
-      <IconCheck size={18} color="green" stroke={2.5} />
-    ) : (
-      <IconX size={18} color="red" stroke={2.5} />
-    );
-
-  const table = (
-    <Table {...mantineTableProps}>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th scope="col">Mã sản phẩm</Table.Th>
-          <Table.Th scope="col">Tên sản phẩm</Table.Th>
-          <Table.Th scope="col" style={{ textAlign: "center", width: 100 }}>
-            Quy cách
-          </Table.Th>
-          <Table.Th scope="col" style={{ width: 120 }}>
-            Thương hiệu
-          </Table.Th>
-          <Table.Th scope="col" style={{ textAlign: "center", width: 130 }}>
-            Chính (Elvawell)
-          </Table.Th>
-          <Table.Th scope="col" style={{ textAlign: "center", width: 130 }}>
-            Chính (Weilaiya)
-          </Table.Th>
-          <Table.Th scope="col" style={{ textAlign: "right", width: 130 }}>
-            Thưởng CEO
-          </Table.Th>
-          <Table.Th scope="col" style={{ textAlign: "right", width: 130 }}>
-            Thưởng cấp trên
-          </Table.Th>
-          <Table.Th scope="col" style={{ textAlign: "center", width: 100 }}>
-            Thao tác
-          </Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {displayFiltered.map((item) => (
-          <Table.Tr key={item.id}>
-            <Table.Td>
-              <Text size="xs" ff="monospace" fw={500}>
-                {item.ma_san_pham}
-              </Text>
-            </Table.Td>
-            <Table.Td>
-              <Text size="xs">{item.ten_san_pham}</Text>
-            </Table.Td>
-            <Table.Td style={{ textAlign: "center" }}>
-              <Text size="xs">{item.quy_cach}</Text>
-            </Table.Td>
-            <Table.Td>
-              <Badge
-                color={brandColor(item.thuong_hieu)}
-                variant="light"
-                size="sm"
-              >
-                {item.thuong_hieu}
-              </Badge>
-            </Table.Td>
-            <Table.Td style={{ textAlign: "center" }}>
-              <Center>{mainFlag(item.la_san_pham_chinh_elvawell)}</Center>
-            </Table.Td>
-            <Table.Td style={{ textAlign: "center" }}>
-              <Center>{mainFlag(item.la_san_pham_chinh_weilaiya)}</Center>
-            </Table.Td>
-            <Table.Td style={{ textAlign: "right" }}>
-              <Text size="xs">
-                {item.thuong_ceo != null
-                  ? item.thuong_ceo.toLocaleString("vi-VN")
-                  : "—"}
-              </Text>
-            </Table.Td>
-            <Table.Td style={{ textAlign: "right" }}>
-              <Text size="xs">
-                {item.thuong_cap_tren != null
-                  ? item.thuong_cap_tren.toLocaleString("vi-VN")
-                  : "—"}
-              </Text>
-            </Table.Td>
-            <Table.Td style={{ textAlign: "center" }}>
-              <Group gap={6} justify="center" wrap="nowrap">
-                <Tooltip label="Sửa" withArrow>
-                  <ActionIcon
-                    variant="light"
-                    color="blue"
-                    size="sm"
-                    onClick={() => c.openEdit(item)}
-                    aria-label={`Sửa sản phẩm ${item.ma_san_pham}`}
-                  >
-                    <IconPencil size={14} />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Xóa" withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    size="sm"
-                    onClick={() => c.setDeleteTarget(item)}
-                    aria-label={`Xoá sản phẩm ${item.ma_san_pham}`}
-                  >
-                    <IconTrash size={14} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            </Table.Td>
+  // Memo hoá bảng theo dữ liệu hiển thị. Khi gõ trong FormModal, state form
+  // (giữ ở useCrudResource cấp trang) đổi làm cả trang re-render; giữ nguyên
+  // element này để React bỏ qua reconcile toàn bộ bảng — tránh giật khi gõ.
+  // openEdit/setDeleteTarget ổn định về hành vi nên không đưa vào deps.
+  const table = useMemo(
+    () => (
+      <Table {...mantineTableProps}>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th scope="col">Mã sản phẩm</Table.Th>
+            <Table.Th scope="col">Tên sản phẩm</Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "center", width: 100 }}>
+              Quy cách
+            </Table.Th>
+            <Table.Th scope="col" style={{ width: 120 }}>
+              Thương hiệu
+            </Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "center", width: 130 }}>
+              Chính (Elvawell)
+            </Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "center", width: 130 }}>
+              Chính (Weilaiya)
+            </Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "right", width: 130 }}>
+              Thưởng CEO
+            </Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "right", width: 130 }}>
+              Thưởng cấp trên
+            </Table.Th>
+            <Table.Th scope="col" style={{ textAlign: "center", width: 100 }}>
+              Thao tác
+            </Table.Th>
           </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+        </Table.Thead>
+        <Table.Tbody>
+          {displayFiltered.map((item) => (
+            <Table.Tr key={item.id}>
+              <Table.Td>
+                <Text size="xs" ff="monospace" fw={500}>
+                  {item.ma_san_pham}
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Text size="xs">{item.ten_san_pham}</Text>
+              </Table.Td>
+              <Table.Td style={{ textAlign: "center" }}>
+                <Text size="xs">{item.quy_cach}</Text>
+              </Table.Td>
+              <Table.Td>
+                <Badge
+                  color={brandColor(item.thuong_hieu)}
+                  variant="light"
+                  size="sm"
+                >
+                  {item.thuong_hieu}
+                </Badge>
+              </Table.Td>
+              <Table.Td style={{ textAlign: "center" }}>
+                <Center>{mainFlag(item.la_san_pham_chinh_elvawell)}</Center>
+              </Table.Td>
+              <Table.Td style={{ textAlign: "center" }}>
+                <Center>{mainFlag(item.la_san_pham_chinh_weilaiya)}</Center>
+              </Table.Td>
+              <Table.Td style={{ textAlign: "right" }}>
+                <Text size="xs">
+                  {item.thuong_ceo != null
+                    ? item.thuong_ceo.toLocaleString("vi-VN")
+                    : "—"}
+                </Text>
+              </Table.Td>
+              <Table.Td style={{ textAlign: "right" }}>
+                <Text size="xs">
+                  {item.thuong_cap_tren != null
+                    ? item.thuong_cap_tren.toLocaleString("vi-VN")
+                    : "—"}
+                </Text>
+              </Table.Td>
+              <Table.Td style={{ textAlign: "center" }}>
+                <Group gap={6} justify="center" wrap="nowrap">
+                  <Tooltip label="Sửa" withArrow>
+                    <ActionIcon
+                      variant="light"
+                      color="blue"
+                      size="sm"
+                      onClick={() => c.openEdit(item)}
+                      aria-label={`Sửa sản phẩm ${item.ma_san_pham}`}
+                    >
+                      <IconPencil size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Xóa" withArrow>
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      size="sm"
+                      onClick={() => c.setDeleteTarget(item)}
+                      aria-label={`Xoá sản phẩm ${item.ma_san_pham}`}
+                    >
+                      <IconTrash size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    ),
+    [displayFiltered],
   );
 
   const FILTER_W = 250;

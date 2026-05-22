@@ -16,7 +16,8 @@ import type { MasterSnapshot } from "../types";
  *
  * Khi truyền `snapshot` (phiên đã chốt): đọc master từ snapshot, KHÔNG fetch
  * live → số liệu cố định tại mốc chốt. Khi `snapshot` null/undefined: chế độ
- * động, fetch live như cũ.
+ * động, fetch live như cũ. Mọi map dẫn xuất (kể cả thưởng) đều xây từ snapshot
+ * khi đã chốt nên thưởng CEO cũng được đóng băng theo.
  */
 export function useReportMasterData(snapshot?: MasterSnapshot | null) {
   // Có snapshot → frozen; không có → live. Tắt query live khi đã frozen để
@@ -38,7 +39,7 @@ export function useReportMasterData(snapshot?: MasterSnapshot | null) {
     enabled: live,
   });
 
-  // ⚠️ Phòng thủ `?? []`: snapshot tạo từ bản app cũ hoặc thiếu field → không
+  // Phòng thủ `?? []`: snapshot tạo từ bản app cũ hoặc thiếu field → không
   // crash, không vỡ báo cáo.
   const sanPhamList = snapshot ? (snapshot.san_pham ?? []) : liveSanPham;
   const masterCEOs = snapshot ? (snapshot.ceo ?? []) : liveCEO;
@@ -99,6 +100,23 @@ export function useReportMasterData(snapshot?: MasterSnapshot | null) {
     return map;
   }, [sanPhamList]);
 
+  // Map mã sản phẩm → thưởng khai báo trên SP (dùng khi SP không thuộc nhóm nào
+  // trong lúc tính thưởng CEO). Dựng từ `sanPhamList` nên khi phiên đã chốt,
+  // thưởng cũng lấy từ snapshot → cố định theo mốc chốt.
+  const productBonusByCode = useMemo(() => {
+    const map = new Map<
+      string,
+      { thuongCeo: number | null; thuongCapTren: number | null }
+    >();
+    sanPhamList.forEach((sp) =>
+      map.set(sp.ma_san_pham, {
+        thuongCeo: sp.thuong_ceo ?? null,
+        thuongCapTren: sp.thuong_cap_tren ?? null,
+      }),
+    );
+    return map;
+  }, [sanPhamList]);
+
   return {
     sanPhamList,
     masterCEOs,
@@ -109,5 +127,6 @@ export function useReportMasterData(snapshot?: MasterSnapshot | null) {
     sanPhamChinhSet,
     productToGroupIdMap,
     productBrandMap,
+    productBonusByCode,
   };
 }

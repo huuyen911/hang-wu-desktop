@@ -6,6 +6,8 @@ export interface NhomSanPham {
   id: number;
   ten_nhom: string;
   thuong_hieu: ThuongHieu;
+  thuong_ceo?: number | null;
+  thuong_cap_tren?: number | null;
   san_pham_ids: number[];
   created_at: string;
   updated_at: string;
@@ -14,5 +16,7 @@ export interface NhomSanPham {
 export interface NhomSanPhamFormValues {
   ten_nhom: string;
   thuong_hieu: ThuongHieu | "";
+  thuong_ceo: number | "";
+  thuong_cap_tren: number | "";
   san_pham_ids: string[];
 }

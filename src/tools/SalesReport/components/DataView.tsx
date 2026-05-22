@@ -11,7 +11,12 @@ import {
   Text,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconArrowLeft, IconLock, IconLockOpen } from "@tabler/icons-react";
+import {
+  IconArrowLeft,
+  IconCheck,
+  IconLock,
+  IconLockOpen,
+} from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
 import { aggregateRows } from "../aggregate";
@@ -55,7 +60,8 @@ export default function DataView({ sessionName, onReset }: Props) {
     data.brands[0]?.brand ??
     "";
 
-  // null → live (chưa chốt); có snapshot → frozen (đã chốt).
+  // null → live (chưa chốt); có snapshot → frozen (đã chốt). `productBonusByCode`
+  // cũng dẫn xuất từ master snapshot nên thưởng CEO đóng băng cùng báo cáo.
   const {
     masterCEOs,
     masterCEOCodeSet,
@@ -65,18 +71,21 @@ export default function DataView({ sessionName, onReset }: Props) {
     sanPhamChinhSet,
     productToGroupIdMap,
     productBrandMap,
+    productBonusByCode,
   } = useReportMasterData(masterSnapshot);
 
   async function handleLock() {
     if (activeSessionId == null) return;
-    // ⚠️ Đảm bảo edit cuối cùng đã lưu xuống DB TRƯỚC khi backend chụp snapshot.
+    // Đảm bảo edit cuối cùng đã lưu xuống DB TRƯỚC khi backend chụp snapshot.
     await flushSavePending();
     lock.mutate(activeSessionId, {
       onSuccess: () => {
         setConfirm(null);
         notifications.show({
           color: "green",
-          message: "🔒 Đã chốt phiên — số liệu đã cố định theo master hiện tại",
+          icon: <IconLock size={18} />,
+          message:
+            "Đã chốt phiên — số liệu & thưởng đã cố định theo master hiện tại",
         });
       },
       onError: (e) =>
@@ -95,7 +104,8 @@ export default function DataView({ sessionName, onReset }: Props) {
         setConfirm(null);
         notifications.show({
           color: "green",
-          message: "✅ Đã hủy chốt — báo cáo đã cập nhật theo master mới nhất",
+          icon: <IconCheck size={18} />,
+          message: "Đã hủy chốt — báo cáo đã cập nhật theo master mới nhất",
         });
       },
       onError: (e) =>
@@ -249,6 +259,7 @@ export default function DataView({ sessionName, onReset }: Props) {
                   productToGroupIdMap={productToGroupIdMap}
                   allNhomGroups={nhomSanPhamList}
                   productBrandMap={productBrandMap}
+                  productBonusByCode={productBonusByCode}
                   filters={brandFilters.get(b.brand) ?? DEFAULT_FILTER_STATE}
                   onFiltersChange={(update) =>
                     setBrandFilters((prev) => {
@@ -281,16 +292,20 @@ export default function DataView({ sessionName, onReset }: Props) {
       >
         <Stack gap="md">
           <Text size="sm">
-            Số liệu báo cáo sẽ được{" "}
+            Số liệu báo cáo{" "}
+            <Text span fw={700}>
+              và phần tính thưởng CEO
+            </Text>{" "}
+            sẽ được{" "}
             <Text span fw={700}>
               CỐ ĐỊNH
             </Text>{" "}
             theo master data tại thời điểm này. Sau khi chốt, dù có sửa sản phẩm
-            / quy cách / nhóm / CEO trong master, phiên này{" "}
+            / quy cách / nhóm / CEO / mức thưởng trong master, phiên này{" "}
             <Text span fw={700}>
               VẪN GIỮ NGUYÊN
             </Text>{" "}
-            số liệu.
+            số liệu &amp; thưởng.
           </Text>
           <Text size="sm" c="dimmed">
             Phiên sẽ bị khóa: không sửa / đổi tên / xóa được cho tới khi bạn hủy
@@ -339,7 +354,7 @@ export default function DataView({ sessionName, onReset }: Props) {
             </Text>
           )}
           <Text size="sm">
-            Ngay khi bạn xác nhận, báo cáo sẽ{" "}
+            Ngay khi bạn xác nhận, báo cáo &amp; thưởng sẽ{" "}
             <Text span fw={700}>
               CẬP NHẬT LẬP TỨC
             </Text>{" "}
@@ -348,8 +363,8 @@ export default function DataView({ sessionName, onReset }: Props) {
             <Text span fw={700}>
               SỐ THÙNG
             </Text>
-            , cách gom nhóm, bộ lọc “chỉ sản phẩm chính” — có thể thay đổi so
-            với bản đã chốt.
+            , cách gom nhóm, mức thưởng, bộ lọc “chỉ sản phẩm chính” — có thể
+            thay đổi so với bản đã chốt.
           </Text>
           <Text size="sm" c="dimmed">
             Phiên sẽ chuyển về chế độ động: mọi thay đổi master sau này đều ảnh

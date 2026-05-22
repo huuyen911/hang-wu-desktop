@@ -18,6 +18,7 @@ import {
   IconBox,
   IconCash,
   IconFileExport,
+  IconGift,
   IconPackage,
   IconUser,
   IconUsers,
@@ -25,6 +26,11 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useState } from "react";
+import {
+  buildBonusExportData,
+  computeCeoBonuses,
+  type BonusProductInfo,
+} from "../bonus";
 import { fmt, fmtAmount, fmtQty } from "../format";
 import type { BrandSummary, CEOSummary } from "../types";
 import { buildMatrixExportData } from "../utils/matrixExport";
@@ -34,10 +40,13 @@ import {
   makeBrandMatcher,
   mergeCEOsAcrossBrands,
 } from "../utils/report";
+import BonusTable from "./BonusTable";
 import CEODetailTable from "./CEODetailTable";
 import CEOListItem from "./CEOListItem";
 import MatrixTable from "./MatrixTable";
 import SearchInput from "./SearchInput";
+
+type ViewMode = "matrix" | "detail" | "bonus";
 
 interface StatTileProps {
   icon: React.ReactNode;
@@ -108,6 +117,7 @@ interface Props {
   productToGroupIdMap: Map<string, number>;
   allNhomGroups: NhomSanPham[];
   productBrandMap: Map<string, string>;
+  productBonusByCode: Map<string, BonusProductInfo>;
   filters: FilterState;
   onFiltersChange: (update: Partial<FilterState>) => void;
 }
@@ -123,10 +133,11 @@ export default function BrandPanel({
   productToGroupIdMap,
   allNhomGroups,
   productBrandMap,
+  productBonusByCode,
   filters,
   onFiltersChange,
 }: Props) {
-  const [viewMode, setViewMode] = useState<"detail" | "matrix">("matrix");
+  const [viewMode, setViewMode] = useState<ViewMode>("matrix");
   const [exporting, setExporting] = useState(false);
 
   const matchesBrand = useMemo(
@@ -245,6 +256,35 @@ export default function BrandPanel({
     ],
   );
 
+  // Thưởng tính từ CHÍNH `visibleCEOs` (đã gộp cross-brand + chỉ SP chính + lọc)
+  // nên số thưởng luôn khớp số thùng đang hiển thị trên ma trận. KHÔNG lọc bớt
+  // CEO: nhóm/SP chưa khai thưởng (hoặc = 0) vẫn hiển thị với thưởng = 0, để cột
+  // "Thùng bản thân" khớp đúng "Tổng thùng" bên Matrix.
+  const bonusRows = useMemo(
+    () =>
+      computeCeoBonuses(
+        visibleCEOs,
+        brand.brand,
+        quyCachMap,
+        productBrandMap,
+        productToGroupIdMap,
+        allNhomGroups,
+        productBonusByCode,
+        masterCEOList,
+      ),
+    [
+      visibleCEOs,
+      brand.brand,
+      quyCachMap,
+      productBrandMap,
+      productToGroupIdMap,
+      allNhomGroups,
+      productBonusByCode,
+      masterCEOList,
+    ],
+  );
+  const totalBonus = bonusRows.reduce((s, r) => s + r.grandTotal, 0);
+
   const activeCEO =
     visibleCEOs.find((c) => c.ceo === selectedCEO) ?? visibleCEOs[0];
 
@@ -285,24 +325,28 @@ export default function BrandPanel({
 
   async function handleExport() {
     if (visibleCEOs.length === 0) return;
+    const isBonus = viewMode === "bonus";
     setExporting(true);
     try {
       const date = new Date().toISOString().slice(0, 10);
       const path = await save({
-        defaultPath: `Báo cáo hàng bán theo khách ${date}.xlsx`,
+        defaultPath: isBonus
+          ? `Tính thưởng CEO ${brand.brand} ${date}.xlsx`
+          : `Báo cáo hàng bán theo khách ${date}.xlsx`,
         filters: [{ name: "Excel", extensions: ["xlsx"] }],
       });
       if (!path) return;
-      const { headers, textTotals, numTextCols, dataRows } =
-        buildMatrixExportData(
-          visibleCEOs,
-          brand.brand,
-          quyCachMap,
-          nhomGroups,
-          productToGroupIdMap,
-          allNhomGroups,
-          productBrandMap,
-        );
+      const { headers, textTotals, numTextCols, dataRows } = isBonus
+        ? buildBonusExportData(bonusRows)
+        : buildMatrixExportData(
+            visibleCEOs,
+            brand.brand,
+            quyCachMap,
+            nhomGroups,
+            productToGroupIdMap,
+            allNhomGroups,
+            productBrandMap,
+          );
       await invoke("export_matrix_excel_file", {
         path,
         headers,
@@ -380,9 +424,15 @@ export default function BrandPanel({
             value={fmtAmount(totalAmountFiltered)}
             accentColor="var(--mantine-color-green-7)"
           />
+          <StatTile
+            icon={<IconGift size={16} />}
+            label="Tổng thưởng"
+            value={fmtAmount(totalBonus)}
+            accentColor="var(--mantine-color-grape-7)"
+          />
         </Group>
         <Group gap="xs" wrap="nowrap">
-          {viewMode === "matrix" && (
+          {(viewMode === "matrix" || viewMode === "bonus") && (
             <Button
               size="xs"
               variant="light"
@@ -398,10 +448,11 @@ export default function BrandPanel({
           <SegmentedControl
             size="xs"
             value={viewMode}
-            onChange={(v) => setViewMode(v as "detail" | "matrix")}
+            onChange={(v) => setViewMode(v as ViewMode)}
             data={[
-              { label: "Bảng", value: "matrix" },
+              { label: "Tổng hợp", value: "matrix" },
               { label: "Chi tiết", value: "detail" },
+              { label: "Thưởng CEO", value: "bonus" },
             ]}
           />
         </Group>
@@ -495,6 +546,8 @@ export default function BrandPanel({
             allNhomGroups={allNhomGroups}
             productBrandMap={productBrandMap}
           />
+        ) : viewMode === "bonus" ? (
+          <BonusTable rows={bonusRows} />
         ) : (
           <>
             {/* Left: CEO list */}

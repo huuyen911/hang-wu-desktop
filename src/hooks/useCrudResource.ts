@@ -2,7 +2,7 @@ import { api } from "@/lib/api";
 import { normalizeSearch } from "@/utils/search";
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useDebounce } from "./useDebounce";
 
 export interface CrudResource {
@@ -132,15 +132,21 @@ export function useCrudResource<T extends { id: number }, F>(
     if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
   }
 
+  // cfg là object literal mới mỗi render, nên KHÔNG đưa vào deps (sẽ làm
+  // `filtered` tính lại mỗi render → mất tác dụng memo hoá bảng ở trang). Đọc
+  // searchFields qua ref để vẫn lấy bản mới nhất mà giữ ref `filtered` ổn định.
+  const cfgRef = useRef(cfg);
+  cfgRef.current = cfg;
+
   const filtered = useMemo(() => {
     const q = normalizeSearch(debouncedSearch.trim());
     if (!q) return items;
     return items.filter((item) =>
-      cfg
+      cfgRef.current
         .searchFields(item)
         .some((f) => f != null && normalizeSearch(f).includes(q)),
     );
-  }, [items, debouncedSearch, cfg]);
+  }, [items, debouncedSearch]);
 
   return {
     items,

@@ -9,6 +9,8 @@ pub struct NhomSanPham {
     pub id: i64,
     pub ten_nhom: String,
     pub thuong_hieu: String,
+    pub thuong_ceo: Option<i64>,
+    pub thuong_cap_tren: Option<i64>,
     pub san_pham_ids: Vec<i64>,
     pub created_at: String,
     pub updated_at: String,
@@ -18,24 +20,29 @@ pub struct NhomSanPham {
 pub struct NhomSanPhamBody {
     pub ten_nhom: String,
     pub thuong_hieu: String,
+    pub thuong_ceo: Option<i64>,
+    pub thuong_cap_tren: Option<i64>,
     pub san_pham_ids: Vec<i64>,
 }
 
-const LIST_SQL: &str = "SELECT n.id, n.ten_nhom, n.thuong_hieu, n.created_at, n.updated_at,
+const LIST_SQL: &str = "SELECT n.id, n.ten_nhom, n.thuong_hieu, n.thuong_ceo, n.thuong_cap_tren,
+    n.created_at, n.updated_at,
     COALESCE(json_group_array(j.san_pham_id) FILTER (WHERE j.san_pham_id IS NOT NULL), '[]') as ids
     FROM nhom_san_pham n
     LEFT JOIN nhom_san_pham_san_pham j ON j.nhom_san_pham_id = n.id
     GROUP BY n.id ORDER BY n.thuong_hieu, n.ten_nhom";
 
 fn row_to_nhom(row: &rusqlite::Row<'_>) -> rusqlite::Result<NhomSanPham> {
-    let ids_json: String = row.get(5)?;
+    let ids_json: String = row.get(7)?;
     let san_pham_ids: Vec<i64> = serde_json::from_str(&ids_json).unwrap_or_default();
     Ok(NhomSanPham {
         id: row.get(0)?,
         ten_nhom: row.get(1)?,
         thuong_hieu: row.get(2)?,
-        created_at: row.get(3)?,
-        updated_at: row.get(4)?,
+        thuong_ceo: row.get(3)?,
+        thuong_cap_tren: row.get(4)?,
+        created_at: row.get(5)?,
+        updated_at: row.get(6)?,
         san_pham_ids,
     })
 }
@@ -71,7 +78,8 @@ fn sync_members(
 
 fn get_by_id(db: &rusqlite::Connection, id: i64) -> Result<NhomSanPham, String> {
     let sql = format!(
-        "SELECT n.id, n.ten_nhom, n.thuong_hieu, n.created_at, n.updated_at,
+        "SELECT n.id, n.ten_nhom, n.thuong_hieu, n.thuong_ceo, n.thuong_cap_tren,
+            n.created_at, n.updated_at,
             COALESCE(json_group_array(j.san_pham_id) FILTER (WHERE j.san_pham_id IS NOT NULL), '[]')
          FROM nhom_san_pham n
          LEFT JOIN nhom_san_pham_san_pham j ON j.nhom_san_pham_id = n.id
@@ -108,8 +116,14 @@ pub fn create_nhom_san_pham(
     }
     let db = state.0.lock().map_err(|e| e.to_string())?;
     db.execute(
-        "INSERT INTO nhom_san_pham (ten_nhom, thuong_hieu) VALUES (?1, ?2)",
-        params![data.ten_nhom.trim(), data.thuong_hieu],
+        "INSERT INTO nhom_san_pham (ten_nhom, thuong_hieu, thuong_ceo, thuong_cap_tren)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![
+            data.ten_nhom.trim(),
+            data.thuong_hieu,
+            data.thuong_ceo,
+            data.thuong_cap_tren,
+        ],
     )
     .map_err(|e| {
         if e.to_string().contains("UNIQUE") {
@@ -135,9 +149,16 @@ pub fn update_nhom_san_pham(
     let db = state.0.lock().map_err(|e| e.to_string())?;
     let n = db
         .execute(
-            "UPDATE nhom_san_pham SET ten_nhom=?1, thuong_hieu=?2, updated_at=datetime('now')
-             WHERE id=?3",
-            params![data.ten_nhom.trim(), data.thuong_hieu, id],
+            "UPDATE nhom_san_pham SET ten_nhom=?1, thuong_hieu=?2, thuong_ceo=?3,
+                thuong_cap_tren=?4, updated_at=datetime('now')
+             WHERE id=?5",
+            params![
+                data.ten_nhom.trim(),
+                data.thuong_hieu,
+                data.thuong_ceo,
+                data.thuong_cap_tren,
+                id,
+            ],
         )
         .map_err(|e| {
             if e.to_string().contains("UNIQUE") {

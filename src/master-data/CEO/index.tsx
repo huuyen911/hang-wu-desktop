@@ -310,7 +310,11 @@ export default function CEOPage() {
     [isFiltering, c.items, predicate],
   );
 
-  const effectiveCollapsed = isFiltering ? new Set<number>() : collapsed;
+  // Ổn định reference để dùng làm dep cho cây bên dưới (khi lọc thì bung hết).
+  const effectiveCollapsed = useMemo(
+    () => (isFiltering ? new Set<number>() : collapsed),
+    [isFiltering, collapsed],
+  );
 
   function clearFilters() {
     setSearchCEO("");
@@ -375,20 +379,27 @@ export default function CEOPage() {
     </>
   );
 
-  const tree = (
-    <Paper withBorder p={6} radius="md">
-      {visibleNodes.map((node) => (
-        <TreeItem
-          key={node.item.id}
-          node={node}
-          collapsed={effectiveCollapsed}
-          onToggle={toggleCollapse}
-          onEdit={c.openEdit}
-          onDelete={c.setDeleteTarget}
-          matchPredicate={isFiltering ? predicate : undefined}
-        />
-      ))}
-    </Paper>
+  // Memo hoá cây CEO: state form ở useCrudResource nằm cấp trang, nên mỗi lần
+  // gõ trong FormModal cả trang re-render. Giữ nguyên element này theo dữ liệu
+  // hiển thị để React bỏ qua reconcile cả cây — tránh giật khi nhập liệu.
+  // toggleCollapse/openEdit/setDeleteTarget ổn định về hành vi nên không đưa vào deps.
+  const tree = useMemo(
+    () => (
+      <Paper withBorder p={6} radius="md">
+        {visibleNodes.map((node) => (
+          <TreeItem
+            key={node.item.id}
+            node={node}
+            collapsed={effectiveCollapsed}
+            onToggle={toggleCollapse}
+            onEdit={c.openEdit}
+            onDelete={c.setDeleteTarget}
+            matchPredicate={isFiltering ? predicate : undefined}
+          />
+        ))}
+      </Paper>
+    ),
+    [visibleNodes, effectiveCollapsed, isFiltering, predicate],
   );
 
   return (

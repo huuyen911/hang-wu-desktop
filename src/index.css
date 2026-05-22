@@ -1,5 +1,6 @@
 @import "@fontsource-variable/inter";
 @import "@mantine/core/styles.css";
+@import "@mantine/dates/styles.css";
 @import "@mantine/notifications/styles.css";
 @import "tailwindcss";
 
@@ -18,4 +19,16 @@
   background: var(--mantine-color-gray-1);
   font-weight: 600;
   border-bottom: 2px solid var(--mantine-color-gray-3);
+}
+
+/* Dòng CEO trong bảng "Tính thưởng" — bấm cả dòng để mở modal chi tiết. Nền
+   xen kẽ được set nội tuyến nên hover/active phải !important mới đè được. */
+.bonus-row {
+  transition: background-color 80ms ease;
+}
+.bonus-row:hover {
+  background: var(--mantine-color-blue-0) !important;
+}
+.bonus-row:active {
+  background: var(--mantine-color-blue-1) !important;
 }

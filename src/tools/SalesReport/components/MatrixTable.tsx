@@ -181,7 +181,21 @@ export default function MatrixTable({
       });
       const grandTotalQty = ceos.reduce((s, c) => s + c.totalQty, 0);
 
-      return { columns, ceoData, colTotals, grandTotalThung, grandTotalQty };
+      // Ẩn cột mà không CEO nào có thùng (số thùng làm tròn về 0). Ngoại lệ:
+      // giữ cột sản phẩm lẻ chưa có trong master để cảnh báo thiếu quy cách.
+      const visibleColumns = columns.filter((col) =>
+        col.isUngrouped && !col.inMaster
+          ? true
+          : (colTotals.get(col.key) ?? 0) > 0,
+      );
+
+      return {
+        columns: visibleColumns,
+        ceoData,
+        colTotals,
+        grandTotalThung,
+        grandTotalQty,
+      };
     }, [
       ceos,
       brand,
