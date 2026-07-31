@@ -68,6 +68,13 @@ pub fn run() {
             commands::backup::write_backup_file,
             commands::backup::read_backup_file,
             commands::backup::restore_backup,
+            // cloud (R2)
+            commands::cloud::cloud_save_credentials,
+            commands::cloud::cloud_credentials_info,
+            commands::cloud::cloud_clear_credentials,
+            commands::cloud::cloud_upload_backup,
+            commands::cloud::cloud_list_backups,
+            commands::cloud::cloud_download_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error running app");

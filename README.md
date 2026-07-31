@@ -1,9 +1,12 @@
 # Hằng Wonder Union — Desktop
 
-Ứng dụng desktop **chạy offline hoàn toàn** cho một người dùng. Quản lý dữ liệu
-gốc (khách hàng / nhóm sản phẩm / sản phẩm) và lập **báo cáo bán hàng** từ file
-Excel. Toàn bộ dữ liệu nằm trong **SQLite local** trên máy — không server,
-không tài khoản, không kết nối mạng.
+Ứng dụng desktop cho một người dùng. Quản lý dữ liệu gốc (khách hàng / nhóm sản
+phẩm / sản phẩm) và lập **báo cáo bán hàng** từ file Excel. Toàn bộ dữ liệu nằm
+trong **SQLite local** trên máy — không server, không tài khoản.
+
+Mọi nghiệp vụ chạy offline. Chỉ hai tính năng chủ động gọi ra mạng, và đều do
+người dùng bấm: kiểm tra cập nhật, và sao lưu / phục hồi qua Cloudflare R2 (xem
+[Dữ liệu & sao lưu](#dữ-liệu--sao-lưu)).
 
 ## Tính năng
 
@@ -13,7 +16,10 @@ không tài khoản, không kết nối mạng.
   theo khách hàng / thương hiệu.
 - **Lịch sử phiên:** mỗi lần import là một *phiên* lưu trong DB — đặt tên, mở
   lại, đổi tên, xoá. Sửa dòng trong phiên được tự lưu (autosave) xuống DB.
-- **Riêng tư:** mọi xử lý chạy tại chỗ, không gửi dữ liệu ra ngoài.
+- **Sao lưu & phục hồi:** xuất/nhập file JSON, hoặc đẩy thẳng lên bucket
+  Cloudflare R2 của bạn để máy khác tải về.
+- **Riêng tư:** mọi xử lý nghiệp vụ chạy tại chỗ; dữ liệu chỉ rời máy khi bạn
+  bấm sao lưu lên mây.
 
 ## Kiến trúc
 
@@ -84,6 +90,15 @@ cũ, dữ liệu trong `%APPDATA%` được giữ nguyên.
 
 - **Vị trí:** `%APPDATA%\com.hangwu.desktop\hang-wu.db` (một file SQLite duy nhất).
 - **Sao lưu / di chuyển máy:** copy đúng file đó là đủ.
+- **Sao lưu lên mây (Cloudflare R2):** màn *Sao lưu & Phục hồi* đẩy bản sao lưu
+  lên bucket R2 của bạn dưới prefix `backups/`, máy khác chọn bản cần và tải
+  thẳng về. Lần đầu bấm, app hỏi 4 thông tin (Account ID, tên bucket, Access
+  Key ID, Secret Access Key) — key được kiểm chứng bằng một lần gọi thử rồi mới
+  lưu vào **Windows Credential Manager**, không nằm trong source, không trong DB
+  và không trong file cấu hình nào. Đổi/xoá key ngay trên màn đó.
+- **Lưu ý:** JSON đẩy lên R2 **không được mã hoá**. Ai lấy được key R2 là đọc
+  được dữ liệu, nên hãy scope token đúng một bucket và cân nhắc bật Bucket Lock
+  để chống xoá nhầm.
 - **Reset sạch:** xoá file đó → mở app lại sẽ tạo DB rỗng và chạy lại migrations.
 - **Migrations:** thêm file `src-tauri/migrations/NNNN_*.sql` (đánh số tăng
   dần); app áp dụng các file chưa chạy theo thứ tự tên, ghi nhận vào bảng
@@ -94,7 +109,7 @@ cũ, dữ liệu trong `%APPDATA%` được giữ nguyên.
 ```
 src-tauri/
   src/
-    commands/    Rust commands (san_pham, ceo, nhom_san_pham, sales_session, backup, excel)
+    commands/    Rust commands (san_pham, ceo, nhom_san_pham, sales_session, backup, cloud, excel)
     db/          Kết nối SQLite và runner migrations
     lib.rs       Đăng ký Tauri commands
     main.rs      Entry point
@@ -108,5 +123,6 @@ src/             Giao diện React (renderer) — màn dữ liệu gốc & Báo 
 
 - **Icon:** nằm trong `src-tauri/icons/`. Tauri tự dùng khi build. Đổi icon =
   thay các file trong thư mục đó (dùng `tauri icon <file.png>` để sinh lại).
-- **Offline tuyệt đối:** app không mở cổng mạng, không gọi API ngoài; mọi
-  giao tiếp UI ↔ backend qua Tauri IPC trong tiến trình.
+- **Mạng:** app không mở cổng nào và không có server; mọi giao tiếp UI ↔ backend
+  đi qua Tauri IPC trong tiến trình. Kết nối ra ngoài chỉ xảy ra khi bạn bấm
+  kiểm tra cập nhật hoặc sao lưu/phục hồi qua R2.

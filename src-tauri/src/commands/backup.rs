@@ -87,23 +87,32 @@ fn base64_encode(data: &[u8]) -> String {
     out
 }
 
-#[tauri::command]
-pub fn build_backup(state: State<DbState>, app_version: String) -> Result<String, String> {
-    let db = state.0.lock().map_err(|e| e.to_string())?;
+/// Dựng JSON sao lưu từ một connection đang giữ sẵn. Tách khỏi command
+/// `build_backup` để đường sao lưu lên cloud tái dùng được cùng một định dạng.
+pub fn build_backup_json(
+    db: &rusqlite::Connection,
+    app_version: &str,
+) -> Result<String, String> {
     let backup = BackupFile {
         format: FORMAT.into(),
         version: VERSION,
-        app_version,
+        app_version: app_version.to_string(),
         exported_at: now_iso(),
         tables: BackupTables {
-            san_pham: dump_table(&db, "san_pham")?,
-            ceo: dump_table(&db, "ceo")?,
-            nhom_san_pham: dump_table(&db, "nhom_san_pham")?,
-            nhom_san_pham_san_pham: dump_table(&db, "nhom_san_pham_san_pham")?,
-            sales_session: dump_table(&db, "sales_session")?,
+            san_pham: dump_table(db, "san_pham")?,
+            ceo: dump_table(db, "ceo")?,
+            nhom_san_pham: dump_table(db, "nhom_san_pham")?,
+            nhom_san_pham_san_pham: dump_table(db, "nhom_san_pham_san_pham")?,
+            sales_session: dump_table(db, "sales_session")?,
         },
     };
     serde_json::to_string_pretty(&backup).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn build_backup(state: State<DbState>, app_version: String) -> Result<String, String> {
+    let db = state.0.lock().map_err(|e| e.to_string())?;
+    build_backup_json(&db, &app_version)
 }
 
 #[tauri::command]
